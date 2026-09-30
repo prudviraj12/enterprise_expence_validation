@@ -18,13 +18,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 type Role = "employee" | "manager" | "finance" | "admin";
 type Status = "Approved" | "In review" | "Needs info" | "Finance review" | "Returned" | "Rejected" | "Paid";
 type Expense = { id: string; merchant: string; owner: string; employeeId: string; department: string; category: string; businessPurpose: string; date: string; amount: number; status: Status; receiptName: string; riskScore: number; policyStatus: string };
-type User = { role: Role; name: string; email: string; password: string; label: string; initials: string };
+type User = { role: Role; name: string; email: string; password: string; label: string; initials: string; workspaceId: string; workspaceName: string };
+type Workspace = { id: string; name: string; admin: User };
 
 const users: User[] = [
-  { role: "employee", name: "Riya Sharma", email: "employee@ledgerly.in", password: "Employee@123", label: "Employee", initials: "RS" },
-  { role: "manager", name: "Arjun Mehta", email: "manager@ledgerly.in", password: "Manager@123", label: "Manager", initials: "AM" },
-  { role: "finance", name: "Ananya Kapoor", email: "finance@ledgerly.in", password: "Finance@123", label: "Finance", initials: "AK" },
-  { role: "admin", name: "Dev Malhotra", email: "admin@ledgerly.in", password: "Admin@123", label: "Admin", initials: "DM" },
+  { role: "employee", name: "Riya Sharma", email: "employee@ledgerly.in", password: "Employee@123", label: "Employee", initials: "RS", workspaceId: "northstar", workspaceName: "Northstar Labs" },
+  { role: "manager", name: "Arjun Mehta", email: "manager@ledgerly.in", password: "Manager@123", label: "Manager", initials: "AM", workspaceId: "northstar", workspaceName: "Northstar Labs" },
+  { role: "finance", name: "Ananya Kapoor", email: "finance@ledgerly.in", password: "Finance@123", label: "Finance", initials: "AK", workspaceId: "northstar", workspaceName: "Northstar Labs" },
+  { role: "admin", name: "Dev Malhotra", email: "admin@ledgerly.in", password: "Admin@123", label: "Admin", initials: "DM", workspaceId: "northstar", workspaceName: "Northstar Labs" },
 ];
 
 const expenses: Expense[] = [
@@ -64,11 +65,11 @@ const statusStyle: Record<Status, string> = {
 };
 const money = (value: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value);
 
-function Brand() {
-  return <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-[#ff6746] text-white shadow-[0_8px_20px_rgba(255,103,70,.28)]"><ReceiptText className="size-5" /></div><div><p className="text-lg font-extrabold tracking-[-.04em]">Ledgerly</p><p className="text-xs text-[#7d8995]">Northstar Labs</p></div></div>;
+function Brand({ company = "Expense operations" }: { company?: string }) {
+  return <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-[#ff6746] text-white shadow-[0_8px_20px_rgba(255,103,70,.28)]"><ReceiptText className="size-5" /></div><div><p className="text-lg font-extrabold tracking-[-.04em]">Ledgerly</p><p className="text-xs text-[#7d8995]">{company}</p></div></div>;
 }
 
-function Landing({ onStart }: { onStart: () => void }) {
+function Landing({ onStart, onCreate }: { onStart: () => void; onCreate: () => void }) {
   const reduceMotion = useReducedMotion();
   const enter = (delay = 0) => ({ initial: { opacity: 0, y: reduceMotion ? 0 : 22 }, animate: { opacity: 1, y: 0 }, transition: { duration: reduceMotion ? 0 : .55, delay } });
   const roles = [
@@ -78,7 +79,7 @@ function Landing({ onStart }: { onStart: () => void }) {
     ["Admin", "Control people, departments, and company rules.", Settings, "04"],
   ] as const;
   return <main className="min-h-screen overflow-hidden bg-[#f5f7f8] text-[#172532]">
-    <nav className="relative z-20 mx-auto flex h-20 max-w-[1420px] items-center justify-between px-5 sm:px-8"><Brand /><div className="hidden items-center gap-8 text-sm font-semibold text-[#5f6d79] md:flex"><a href="#workflow" className="hover:text-[#172532]">Workflow</a><a href="#intelligence" className="hover:text-[#172532]">AI verification</a><a href="#roles" className="hover:text-[#172532]">Roles</a></div><Button onClick={onStart} variant="outline" className="rounded-xl border-[#cfd7dd] bg-white px-5">Sign in <ArrowRight className="size-4" /></Button></nav>
+    <nav className="relative z-20 mx-auto flex h-20 max-w-[1420px] items-center justify-between px-5 sm:px-8"><Brand /><div className="hidden items-center gap-8 text-sm font-semibold text-[#5f6d79] md:flex"><a href="#workflow" className="hover:text-[#172532]">Workflow</a><a href="#intelligence" className="hover:text-[#172532]">AI verification</a><a href="#roles" className="hover:text-[#172532]">Roles</a></div><div className="flex gap-2"><Button onClick={onCreate} className="rounded-xl bg-[#172532] px-4 text-white">Create workspace</Button><Button onClick={onStart} variant="outline" className="rounded-xl border-[#cfd7dd] bg-white px-5">Sign in <ArrowRight className="size-4" /></Button></div></nav>
 
     <section className="relative mx-auto grid min-h-[calc(100vh-80px)] max-w-[1420px] items-center gap-14 px-5 pb-20 pt-10 sm:px-8 lg:grid-cols-[.92fr_1.08fr] lg:py-20">
       <div className="pointer-events-none absolute -left-40 top-10 size-[500px] rounded-full bg-[#ff6746]/[.07] blur-3xl" />
@@ -86,7 +87,7 @@ function Landing({ onStart }: { onStart: () => void }) {
         <motion.div {...enter(0)} className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#ffb3a2] bg-[#fff3ef] px-3 py-1.5 text-xs font-bold text-[#d94f31]"><Sparkles className="size-3.5" /> AI-POWERED EXPENSE OPERATIONS</motion.div>
         <motion.h1 {...enter(.08)} className="max-w-3xl text-[clamp(3rem,6vw,5.8rem)] font-bold leading-[.96] tracking-[-.065em]">Every expense.<br /><span className="text-[#ff6746]">Clearly handled.</span></motion.h1>
         <motion.p {...enter(.16)} className="mt-7 max-w-xl text-lg leading-8 text-[#61707d]">Ledgerly moves claims from receipt to reimbursement with business approval, explainable AI verification, policy controls, and a complete audit trail.</motion.p>
-        <motion.div {...enter(.24)} className="mt-9 flex flex-wrap gap-3"><Button onClick={onStart} className="h-12 rounded-xl bg-[#172532] px-6 text-white shadow-[0_14px_35px_rgba(23,37,50,.2)] hover:bg-[#26394b]">Explore the workspace <ArrowRight className="size-4" /></Button><a href="#workflow" className="inline-flex h-12 items-center rounded-xl border border-[#d5dde2] bg-white px-6 text-sm font-semibold">See how it works</a></motion.div>
+        <motion.div {...enter(.24)} className="mt-9 flex flex-wrap gap-3"><Button onClick={onCreate} className="h-12 rounded-xl bg-[#172532] px-6 text-white shadow-[0_14px_35px_rgba(23,37,50,.2)] hover:bg-[#26394b]">Create your workspace <ArrowRight className="size-4" /></Button><Button onClick={onStart} variant="outline" className="h-12 rounded-xl border-[#d5dde2] bg-white px-6">Explore demo</Button></motion.div>
         <motion.div {...enter(.32)} className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-sm text-[#677582]">{["Duplicate detection", "Policy checks", "Role-based approvals"].map((item) => <span key={item} className="flex items-center gap-2"><Check className="size-4 text-emerald-600" />{item}</span>)}</motion.div>
       </div>
 
@@ -100,13 +101,40 @@ function Landing({ onStart }: { onStart: () => void }) {
 
     <section id="intelligence" className="mx-auto grid max-w-[1240px] gap-12 px-5 py-24 sm:px-8 lg:grid-cols-2 lg:items-center"><motion.div initial={{ opacity: 0, x: reduceMotion ? 0 : -24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}><div className="grid size-12 place-items-center rounded-2xl bg-[#fff0eb] text-[#df5638]"><ScanLine /></div><h2 className="mt-6 text-4xl font-bold tracking-[-.045em]">AI that explains what it found.</h2><p className="mt-5 text-lg leading-8 text-[#64727f]">Ledgerly checks receipt integrity, duplicate hashes, image quality, OCR completeness, and policy rules. Suspicious evidence goes to Finance with a confidence score and a clear next action.</p><div className="mt-7 space-y-3">{["Human review stays in control", "No automatic fraud accusations", "Every override enters the audit trail"].map((item) => <div key={item} className="flex items-center gap-3 rounded-xl border bg-white p-4 text-sm font-semibold"><Check className="size-4 text-emerald-600" />{item}</div>)}</div></motion.div><motion.div initial={{ opacity: 0, x: reduceMotion ? 0 : 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="rounded-[28px] bg-[#fff0eb] p-5 sm:p-8"><div className="rounded-2xl border border-[#ffd2c7] bg-white p-5"><div className="flex items-center justify-between"><div><p className="font-bold">The Westin</p><p className="text-xs text-[#89949f]">Receipt EX-1048</p></div><Badge className="bg-red-50 text-red-700">Possible edit</Badge></div><div className="mt-6"><div className="mb-2 flex justify-between text-sm"><span>Risk confidence</span><b>78%</b></div><Progress value={78} className="h-2 [&_[data-slot=progress-indicator]]:bg-[#ff6746]" /></div><div className="mt-5 rounded-xl bg-[#f7f9fa] p-4 text-sm leading-6 text-[#586672]"><b>Reason:</b> JPEG compression differs around the total amount.<br /><b>Recommendation:</b> Compare with the card transaction and request the original file.</div></div></motion.div></section>
 
-    <section id="roles" className="px-5 pb-24 sm:px-8"><motion.div initial={{ opacity: 0, scale: reduceMotion ? 1 : .98 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="mx-auto flex max-w-[1240px] flex-col items-start justify-between gap-8 overflow-hidden rounded-[30px] bg-[#ff6746] p-8 text-white sm:p-12 lg:flex-row lg:items-center"><div><p className="text-sm font-bold text-white/75">READY TO EXPLORE?</p><h2 className="mt-2 max-w-2xl text-4xl font-bold tracking-[-.045em]">See the full expense workflow from every role.</h2></div><Button onClick={onStart} className="h-12 shrink-0 rounded-xl bg-white px-6 font-bold text-[#172532] hover:bg-[#f4f6f7]">Open demo workspace <ArrowRight className="size-4" /></Button></motion.div></section>
+    <section id="roles" className="px-5 pb-24 sm:px-8"><motion.div initial={{ opacity: 0, scale: reduceMotion ? 1 : .98 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="mx-auto flex max-w-[1240px] flex-col items-start justify-between gap-8 overflow-hidden rounded-[30px] bg-[#ff6746] p-8 text-white sm:p-12 lg:flex-row lg:items-center"><div><p className="text-sm font-bold text-white/75">READY TO START?</p><h2 className="mt-2 max-w-2xl text-4xl font-bold tracking-[-.045em]">Create a workspace for your own organization.</h2></div><Button onClick={onCreate} className="h-12 shrink-0 rounded-xl bg-white px-6 font-bold text-[#172532] hover:bg-[#f4f6f7]">Create workspace <ArrowRight className="size-4" /></Button></motion.div></section>
 
     <footer className="border-t bg-white px-5 py-7 sm:px-8"><div className="mx-auto flex max-w-[1240px] flex-col gap-3 text-sm text-[#71808d] sm:flex-row sm:items-center sm:justify-between"><Brand /><p>Receipt intelligence · Approval controls · Reimbursement tracking</p></div></footer>
   </main>;
 }
 
-function Login({ onLogin, onBack }: { onLogin: (user: User) => void; onBack: () => void }) {
+function CreateWorkspace({ onCreated, onBack }: { onCreated: (workspace: Workspace) => void; onBack: () => void }) {
+  const [company, setCompany] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (company.trim().length < 2 || name.trim().length < 2) { setError("Enter your organization and administrator name."); return; }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setError("Enter a valid administrator email address."); return; }
+    if (password.length < 8) { setError("Use at least 8 characters for the password."); return; }
+    const workspaceId = `${company.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now()}`;
+    const cleanName = name.trim();
+    const admin: User = { role: "admin", name: cleanName, email: email.trim().toLowerCase(), password, label: "Admin", initials: cleanName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(), workspaceId, workspaceName: company.trim() };
+    onCreated({ id: workspaceId, name: company.trim(), admin });
+  }
+
+  return <main className="grid min-h-screen place-items-center bg-[#f4f7f8] p-5 sm:p-10"><div className="w-full max-w-xl">
+    <button onClick={onBack} className="mb-6 flex items-center gap-2 text-sm font-semibold text-[#65737f]"><ArrowRight className="size-4 rotate-180" /> Back to home</button>
+    <div className="rounded-[28px] border bg-white p-6 shadow-[0_24px_70px_rgba(20,35,48,.1)] sm:p-9"><Brand /><div className="mt-8"><p className="text-sm font-bold text-[#ff6746]">NEW WORKSPACE</p><h1 className="mt-2 text-3xl font-bold tracking-[-.04em]">Set up your organization</h1><p className="mt-2 text-[#71808d]">You will become the first administrator and can configure people, policies, and departments.</p></div>
+      <form onSubmit={submit} className="mt-7 grid gap-4"><label className="grid gap-2 text-sm font-semibold">Organization name<Input value={company} onChange={(event) => setCompany(event.target.value)} placeholder="Acme Technologies" className="h-11 rounded-xl" /></label><label className="grid gap-2 text-sm font-semibold">Administrator name<Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" className="h-11 rounded-xl" /></label><label className="grid gap-2 text-sm font-semibold">Work email<Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@company.com" className="h-11 rounded-xl" /></label><label className="grid gap-2 text-sm font-semibold">Password<Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" className="h-11 rounded-xl" /></label>{error && <p className="text-sm font-medium text-red-600">{error}</p>}<Button type="submit" className="mt-2 h-12 rounded-xl bg-[#172532] font-semibold text-white">Create workspace <ArrowRight className="size-4" /></Button></form>
+      <p className="mt-5 text-center text-xs leading-5 text-[#89949f]">This prototype stores your workspace in this browser.</p>
+    </div>
+  </div></main>;
+}
+
+function Login({ onLogin, onBack, onCreate, workspaces }: { onLogin: (user: User) => void; onBack: () => void; onCreate: () => void; workspaces: Workspace[] }) {
   const [selected, setSelected] = useState<User>(users[0]);
   const [email, setEmail] = useState(users[0].email);
   const [password, setPassword] = useState(users[0].password);
@@ -115,7 +143,8 @@ function Login({ onLogin, onBack }: { onLogin: (user: User) => void; onBack: () 
   function choose(user: User) { setSelected(user); setEmail(user.email); setPassword(user.password); setError(""); }
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    const match = users.find((user) => user.email === email.trim().toLowerCase() && user.password === password);
+    const accounts = [...users, ...workspaces.map((workspace) => workspace.admin)];
+    const match = accounts.find((user) => user.email === email.trim().toLowerCase() && user.password === password);
     if (!match) { setError("Email or password is incorrect."); return; }
     onLogin(match);
   }
@@ -129,7 +158,8 @@ function Login({ onLogin, onBack }: { onLogin: (user: User) => void; onBack: () 
     </section>
     <section className="flex items-center justify-center p-5 sm:p-10"><div className="w-full max-w-[470px]">
       <button onClick={onBack} className="mb-6 flex items-center gap-2 text-sm font-semibold text-[#65737f]"><ArrowRight className="size-4 rotate-180" /> Back to home</button><div className="mb-10 lg:hidden"><Brand /></div>
-      <p className="text-sm font-bold text-[#ff6746]">WELCOME BACK</p><h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">Sign in to your workspace</h2><p className="mt-2 text-[#71808d]">Choose a demo role to explore its complete experience.</p>
+      <p className="text-sm font-bold text-[#ff6746]">WELCOME BACK</p><h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">Sign in to your workspace</h2><p className="mt-2 text-[#71808d]">Use your workspace credentials or choose a demo role.</p>
+      {workspaces.length > 0 && <div className="mt-6"><p className="mb-2 text-xs font-bold uppercase tracking-[.12em] text-[#89949f]">Your workspaces</p><div className="grid gap-2">{workspaces.map((workspace) => <button key={workspace.id} onClick={() => choose(workspace.admin)} className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${selected.workspaceId === workspace.id ? "border-[#ff6746] bg-[#fff0eb]" : "bg-white hover:border-[#bac4cc]"}`}><div className="grid size-9 place-items-center rounded-lg bg-[#172532] text-xs font-bold text-white">{workspace.name.slice(0, 2).toUpperCase()}</div><div className="flex-1"><p className="text-sm font-bold">{workspace.name}</p><p className="text-xs text-[#71808d]">{workspace.admin.email}</p></div><Badge variant="outline">Admin</Badge></button>)}</div></div>}
       <div className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4">{users.map((user) => <button key={user.role} onClick={() => choose(user)} className={`rounded-xl border px-2 py-3 text-sm font-semibold transition ${selected.role === user.role ? "border-[#ff6746] bg-[#fff0eb] text-[#d95235]" : "border-[#dfe5e9] bg-white text-[#687582] hover:border-[#bac4cc]"}`}>{user.label}</button>)}</div>
       <form onSubmit={submit} className="mt-6 rounded-2xl border border-[#e0e6e9] bg-white p-6 shadow-[0_20px_55px_rgba(20,35,48,.08)] sm:p-8">
         <div className="mb-5 flex items-center gap-3 rounded-xl bg-[#f5f7f8] p-3"><div className="grid size-10 place-items-center rounded-full bg-[#172532] text-xs font-bold text-white">{selected.initials}</div><div><p className="font-semibold">{selected.name}</p><p className="text-xs text-[#7d8995]">{selected.label} demo account</p></div></div>
@@ -137,8 +167,9 @@ function Login({ onLogin, onBack }: { onLogin: (user: User) => void; onBack: () 
         <label className="mt-4 grid gap-2 text-sm font-semibold">Password<Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-11 rounded-xl" /></label>
         {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
         <Button type="submit" className="mt-6 h-11 w-full rounded-xl bg-[#172532] font-semibold text-white hover:bg-[#26394b]">Sign in as {selected.label}</Button>
-        <p className="mt-4 text-center text-xs text-[#89949f]">Demo credentials are filled automatically.</p>
+        <p className="mt-4 text-center text-xs text-[#89949f]">{selected.workspaceId === "northstar" ? "Demo credentials are filled automatically." : `Signing in to ${selected.workspaceName}.`}</p>
       </form>
+      <Button onClick={onCreate} variant="outline" className="mt-4 h-11 w-full rounded-xl border-[#cfd7dd] bg-white"><Plus className="size-4" /> Create another workspace</Button>
     </div></section>
   </main>;
 }
@@ -148,7 +179,7 @@ function ExpenseTable({ rows, action }: { rows: Expense[]; action?: "approve" | 
   return <div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#fafbfb]"><TableHead className="pl-6">Expense</TableHead><TableHead>Employee</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead>{action && <TableHead className="pr-6 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>{rows.map((expense) => { const status: Status = completed.includes(expense.id) ? "Approved" : expense.status; return <TableRow key={expense.id}><TableCell className="py-4 pl-6"><p className="font-semibold">{expense.merchant}</p><p className="text-xs text-[#89949f]">{expense.id} · {expense.category}</p></TableCell><TableCell>{expense.owner}</TableCell><TableCell>{expense.date}</TableCell><TableCell><Badge variant="outline" className={`rounded-full ${statusStyle[status]}`}>{status}</Badge></TableCell><TableCell className="text-right font-bold">{money(expense.amount)}</TableCell>{action && <TableCell className="pr-6 text-right"><Button size="sm" onClick={() => setCompleted((items) => [...items, expense.id])} disabled={status === "Approved"} className="rounded-lg bg-[#172532] text-white"><Check className="size-4" /> {status === "Approved" ? "Completed" : action === "approve" ? "Approve" : "Verify"}</Button></TableCell>}</TableRow>; })}</TableBody></Table></div>;
 }
 
-function NewExpense({ onSubmitted }: { onSubmitted: (expense: Expense) => void }) {
+function NewExpense({ onSubmitted, storageKey }: { onSubmitted: (expense: Expense) => void; storageKey: string }) {
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [merchant, setMerchant] = useState("");
@@ -182,8 +213,8 @@ function NewExpense({ onSubmitted }: { onSubmitted: (expense: Expense) => void }
     const numericAmount = Number(amount);
     if (!merchant.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0 || !file) return;
     const expense: Expense = { id: `EX-${Date.now().toString().slice(-6)}`, merchant: merchant.trim(), owner: "Riya Sharma", employeeId: "EMP-021", department: "Sales", category, businessPurpose: purpose.trim(), date: "30 Sep 2026", amount: numericAmount, status: "In review", receiptName: file.name, riskScore: analysis?.decision === "Ready for review" ? 8 : 42, policyStatus: "Pending manager review" };
-    const stored = JSON.parse(localStorage.getItem("ledgerly:submitted-expenses") ?? "[]") as Expense[];
-    localStorage.setItem("ledgerly:submitted-expenses", JSON.stringify([expense, ...stored]));
+    const stored = JSON.parse(localStorage.getItem(storageKey) ?? "[]") as Expense[];
+    localStorage.setItem(storageKey, JSON.stringify([expense, ...stored]));
     onSubmitted(expense);
     setSaved(true);
   }
@@ -271,34 +302,49 @@ function AdminPage({ title }: { title: string }) {
 
 function App({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [view, setView] = useState(user.role === "manager" ? "Dashboard" : "Overview");
+  const storageKey = user.workspaceId === "northstar" ? "ledgerly:submitted-expenses" : `ledgerly:submitted-expenses:${user.workspaceId}`;
   const [submitted, setSubmitted] = useState<Expense[]>(() => {
     if (typeof window === "undefined") return [];
     try {
-      const stored = JSON.parse(localStorage.getItem("ledgerly:submitted-expenses") ?? "[]") as Partial<Expense>[];
+      const stored = JSON.parse(localStorage.getItem(storageKey) ?? "[]") as Partial<Expense>[];
       return stored.map((item) => ({ id: item.id ?? `EX-${Date.now()}`, merchant: item.merchant ?? "Unknown merchant", owner: item.owner ?? "Riya Sharma", employeeId: item.employeeId ?? "EMP-021", department: item.department ?? "Sales", category: item.category ?? "Other", businessPurpose: item.businessPurpose ?? "Business purpose not provided", date: item.date ?? "30 Sep 2026", amount: item.amount ?? 0, status: item.status ?? "In review", receiptName: item.receiptName ?? "receipt attached", riskScore: item.riskScore ?? 15, policyStatus: item.policyStatus ?? "Pending manager review" }));
     } catch {
       return [];
     }
   });
-  const [sampleRows, setSampleRows] = useState(expenses);
+  const [sampleRows, setSampleRows] = useState(user.workspaceId === "northstar" ? expenses : []);
   const allRows = useMemo(() => [...submitted, ...sampleRows], [submitted, sampleRows]);
   function updateClaim(id: string, status: Status) {
     setSubmitted((items) => {
       const updated = items.map((item) => item.id === id ? { ...item, status, policyStatus: status === "Finance review" ? "Manager approved" : item.policyStatus } : item);
-      localStorage.setItem("ledgerly:submitted-expenses", JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
       return updated;
     });
     setSampleRows((items) => items.map((item) => item.id === id ? { ...item, status } : item));
   }
   const titles: Record<string, string> = { "My expenses": "Your submitted claims and their current status.", "Team expenses": "All expenses submitted by your direct reports.", Approvals: "Review and decide on claims awaiting manager approval.", Verification: "Validate claims, AI findings, and policy exceptions.", Reimbursements: "Track approved claims through payment.", Reports: "Review monthly, quarterly, and yearly spending.", };
-  return <SidebarProvider className="min-h-screen bg-[#f4f7f8] text-[#172532]"><Sidebar collapsible="icon" className="border-r-0 bg-white"><SidebarHeader className="border-b p-5"><Brand /></SidebarHeader><SidebarContent className="px-3 py-5"><SidebarGroup><SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-[.12em] text-[#9aa4af]">{user.label} workspace</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{nav[user.role].map((item) => <SidebarMenuItem key={item.label}><SidebarMenuButton isActive={view === item.label} onClick={() => setView(item.label)} tooltip={item.label} className="h-11 rounded-xl px-3 data-[active=true]:bg-[#fff0eb] data-[active=true]:text-[#d95235]"><item.icon /><span>{item.label}</span>{item.count && <span className="ml-auto rounded-full bg-[#eef1f3] px-2 text-xs">{item.count}</span>}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent><SidebarFooter className="border-t p-3"><div className="mb-2 flex items-center gap-3 rounded-xl p-2"><div className="grid size-9 place-items-center rounded-full bg-[#172532] text-xs font-bold text-white">{user.initials}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{user.name}</p><p className="text-xs text-[#89949f]">{user.label}</p></div><ChevronDown className="size-4" /></div><SidebarMenuButton onClick={onLogout} className="h-10 rounded-xl text-[#687582]"><LogOut /><span>Sign out</span></SidebarMenuButton></SidebarFooter></Sidebar>
-    <SidebarInset className="bg-[#f4f7f8]"><header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b bg-white/90 px-4 backdrop-blur sm:px-8"><div className="flex items-center gap-3"><SidebarTrigger><Menu /></SidebarTrigger><div><p className="text-sm font-semibold">Wednesday, 30 September</p><p className="hidden text-xs text-[#89949f] sm:block">Northstar Labs · {user.label}</p></div></div><div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="relative rounded-xl"><Bell className="size-5" /><span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff6746]" /></Button>{user.role === "employee" && <NewExpense onSubmitted={(expense) => setSubmitted((items) => [expense, ...items])} />}</div></header>
+  return <SidebarProvider className="min-h-screen bg-[#f4f7f8] text-[#172532]"><Sidebar collapsible="icon" className="border-r-0 bg-white"><SidebarHeader className="border-b p-5"><Brand company={user.workspaceName} /></SidebarHeader><SidebarContent className="px-3 py-5"><SidebarGroup><SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-[.12em] text-[#9aa4af]">{user.label} workspace</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{nav[user.role].map((item) => <SidebarMenuItem key={item.label}><SidebarMenuButton isActive={view === item.label} onClick={() => setView(item.label)} tooltip={item.label} className="h-11 rounded-xl px-3 data-[active=true]:bg-[#fff0eb] data-[active=true]:text-[#d95235]"><item.icon /><span>{item.label}</span>{item.count && <span className="ml-auto rounded-full bg-[#eef1f3] px-2 text-xs">{item.count}</span>}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent><SidebarFooter className="border-t p-3"><div className="mb-2 flex items-center gap-3 rounded-xl p-2"><div className="grid size-9 place-items-center rounded-full bg-[#172532] text-xs font-bold text-white">{user.initials}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{user.name}</p><p className="text-xs text-[#89949f]">{user.label}</p></div><ChevronDown className="size-4" /></div><SidebarMenuButton onClick={onLogout} className="h-10 rounded-xl text-[#687582]"><LogOut /><span>Sign out</span></SidebarMenuButton></SidebarFooter></Sidebar>
+    <SidebarInset className="bg-[#f4f7f8]"><header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b bg-white/90 px-4 backdrop-blur sm:px-8"><div className="flex items-center gap-3"><SidebarTrigger><Menu /></SidebarTrigger><div><p className="text-sm font-semibold">Wednesday, 30 September</p><p className="hidden text-xs text-[#89949f] sm:block">{user.workspaceName} · {user.label}</p></div></div><div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="relative rounded-xl"><Bell className="size-5" /><span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff6746]" /></Button>{user.role === "employee" && <NewExpense storageKey={storageKey} onSubmitted={(expense) => setSubmitted((items) => [expense, ...items])} />}</div></header>
       <main className="mx-auto w-full max-w-[1460px] p-4 sm:p-8 lg:p-9">{user.role === "manager" ? <ManagerWorkspace view={view} rows={allRows} onDecision={updateClaim} /> : view === "Overview" ? <Overview user={user} rows={allRows} /> : view === "Verification" ? <AIReviewPage submitted={allRows.filter((item) => item.status === "Finance review")} /> : user.role === "admin" ? <AdminPage title={view} /> : <ListPage title={view} subtitle={titles[view] ?? "Review records and activity."} user={user} allRows={allRows} />}</main>
     </SidebarInset></SidebarProvider>;
 }
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const [screen, setScreen] = useState<"landing" | "login">("landing");
-  return user ? <App user={user} onLogout={() => { setUser(null); setScreen("login"); }} /> : screen === "landing" ? <Landing onStart={() => setScreen("login")} /> : <Login onLogin={setUser} onBack={() => setScreen("landing")} />;
+  const [screen, setScreen] = useState<"landing" | "login" | "create">("landing");
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("ledgerly:workspaces") ?? "[]") as Workspace[]; }
+    catch { return []; }
+  });
+  function createWorkspace(workspace: Workspace) {
+    const updated = [...workspaces.filter((item) => item.admin.email !== workspace.admin.email), workspace];
+    localStorage.setItem("ledgerly:workspaces", JSON.stringify(updated));
+    setWorkspaces(updated);
+    setUser(workspace.admin);
+  }
+  if (user) return <App user={user} onLogout={() => { setUser(null); setScreen("login"); }} />;
+  if (screen === "landing") return <Landing onStart={() => setScreen("login")} onCreate={() => setScreen("create")} />;
+  if (screen === "create") return <CreateWorkspace onCreated={createWorkspace} onBack={() => setScreen("landing")} />;
+  return <Login onLogin={setUser} onBack={() => setScreen("landing")} onCreate={() => setScreen("create")} workspaces={workspaces} />;
 }

@@ -6,7 +6,7 @@ import Home from "@/app/page";
 async function openLogin(user: ReturnType<typeof userEvent.setup>) {
   render(<Home />);
   expect(screen.getByRole("heading", { name: /Every expense/i })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /Explore the workspace/i }));
+  await user.click(screen.getByRole("button", { name: /Sign in/i }));
   expect(screen.getByRole("heading", { name: /Sign in to your workspace/i })).toBeInTheDocument();
 }
 
@@ -25,6 +25,24 @@ describe("Ledgerly modules", () => {
       await user.click(screen.getByRole("button", { name: role, exact: true }));
       expect(screen.getByRole("button", { name: `Sign in as ${role}` })).toBeEnabled();
     }
+  });
+
+  it("creates and reopens a custom workspace", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await user.click(screen.getAllByRole("button", { name: /Create workspace/i })[0]);
+    await user.type(screen.getByPlaceholderText("Acme Technologies"), "Orbit Systems");
+    await user.type(screen.getByPlaceholderText("Your full name"), "Maya Singh");
+    await user.type(screen.getByPlaceholderText("admin@company.com"), "maya@orbit.test");
+    await user.type(screen.getByPlaceholderText("At least 8 characters"), "Orbit@123");
+    await user.click(screen.getByRole("button", { name: /Create workspace/i }));
+    expect(screen.getByText("Orbit Systems")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Everything is running smoothly/i })).toBeInTheDocument();
+    expect(localStorage.getItem("ledgerly:workspaces")).toContain("maya@orbit.test");
+    await user.click(screen.getByRole("button", { name: /Sign out/i }));
+    await user.click(screen.getByRole("button", { name: /Orbit Systems/i }));
+    await user.click(screen.getByRole("button", { name: /Sign in as Admin/i }));
+    expect(screen.getByRole("heading", { name: /Everything is running smoothly/i })).toBeInTheDocument();
   });
 
   it("exposes every manager module", async () => {
