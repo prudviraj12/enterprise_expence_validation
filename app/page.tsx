@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell, Building2, Check, ChevronDown, CircleDollarSign, FileCheck2,
   FileText, LayoutDashboard, LogOut, Menu, Plus, ReceiptText, Search,
@@ -103,13 +103,17 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
 
 function ExpenseTable({ rows, action }: { rows: Expense[]; action?: "approve" | "verify" }) {
   const [records, setRecords] = useState(rows);
+  useEffect(() => setRecords(rows), [rows]);
   function complete(id: string) { setRecords((items) => items.map((item) => item.id === id ? { ...item, status: "Approved" } : item)); }
   return <div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#fafbfb]"><TableHead className="pl-6">Expense</TableHead><TableHead>Employee</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead>{action && <TableHead className="pr-6 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>{records.map((expense) => <TableRow key={expense.id}><TableCell className="py-4 pl-6"><p className="font-semibold">{expense.merchant}</p><p className="text-xs text-[#89949f]">{expense.id} · {expense.category}</p></TableCell><TableCell>{expense.owner}</TableCell><TableCell>{expense.date}</TableCell><TableCell><Badge variant="outline" className={`rounded-full ${statusStyle[expense.status]}`}>{expense.status}</Badge></TableCell><TableCell className="text-right font-bold">{money(expense.amount)}</TableCell>{action && <TableCell className="pr-6 text-right"><Button size="sm" onClick={() => complete(expense.id)} disabled={expense.status === "Approved"} className="rounded-lg bg-[#172532] text-white"><Check className="size-4" /> {expense.status === "Approved" ? "Completed" : action === "approve" ? "Approve" : "Verify"}</Button></TableCell>}</TableRow>)}</TableBody></Table></div>;
 }
 
-function NewExpense() {
+function NewExpense({ onSubmitted }: { onSubmitted: (expense: Expense) => void }) {
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [merchant, setMerchant] = useState("");
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("Meals");
   const [file, setFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<{ decision: string; detail: string } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -133,10 +137,20 @@ function NewExpense() {
     finally { setAnalyzing(false); }
   }
 
-  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button className="rounded-xl bg-[#ff6746] text-white hover:bg-[#e95a3c]"><Plus className="size-4" /> New expense</Button></DialogTrigger><DialogContent className="rounded-2xl"><DialogHeader><DialogTitle>Submit an expense</DialogTitle><DialogDescription>Add the purchase details and receipt.</DialogDescription></DialogHeader>{saved ? <div className="grid place-items-center gap-3 py-10 text-center"><div className="grid size-12 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check /></div><h3 className="font-bold">Expense submitted</h3><p className="text-sm text-[#71808d]">Your manager has been notified.</p></div> : <div className="grid gap-4 py-4"><Input placeholder="Merchant" /><div className="grid grid-cols-2 gap-3"><Input placeholder="Amount (INR)" /><select className="rounded-md border px-3"><option>Meals</option><option>Travel</option><option>Lodging</option></select></div><label className="grid min-h-24 cursor-pointer place-items-center rounded-xl border border-dashed border-[#bdc7cf] bg-[#f8fafb] p-4 text-center text-sm text-[#63717e] hover:border-[#ff6746]"><input type="file" accept="image/jpeg,image/png,application/pdf" className="sr-only" onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void inspectReceipt(selected); }} /><span><ReceiptText className="mx-auto mb-2 size-5" />{file ? file.name : "Choose a JPG, PNG, or PDF receipt"}</span></label>{analyzing && <p className="text-sm text-[#71808d]">Analyzing receipt integrity…</p>}{analysis && <div className={`rounded-xl border p-3 text-sm ${analysis.decision === "Ready for review" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}><b>{analysis.decision}</b><p className="mt-1">{analysis.detail}</p></div>}</div>}<DialogFooter>{saved ? <Button onClick={() => { setOpen(false); setSaved(false); setFile(null); setAnalysis(null); }}>Done</Button> : <Button onClick={() => setSaved(true)} disabled={!file || analyzing} className="bg-[#172532] text-white">Submit expense</Button>}</DialogFooter></DialogContent></Dialog>;
+  function submitExpense() {
+    const numericAmount = Number(amount);
+    if (!merchant.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0 || !file) return;
+    const expense: Expense = { id: `EX-${Date.now().toString().slice(-6)}`, merchant: merchant.trim(), owner: "Riya Sharma", category, date: "30 Sep 2026", amount: numericAmount, status: "In review" };
+    const stored = JSON.parse(localStorage.getItem("ledgerly:submitted-expenses") ?? "[]") as Expense[];
+    localStorage.setItem("ledgerly:submitted-expenses", JSON.stringify([expense, ...stored]));
+    onSubmitted(expense);
+    setSaved(true);
+  }
+
+  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button className="rounded-xl bg-[#ff6746] text-white hover:bg-[#e95a3c]"><Plus className="size-4" /> New expense</Button></DialogTrigger><DialogContent className="rounded-2xl"><DialogHeader><DialogTitle>Submit an expense</DialogTitle><DialogDescription>Add the purchase details and receipt.</DialogDescription></DialogHeader>{saved ? <div className="grid place-items-center gap-3 py-10 text-center"><div className="grid size-12 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check /></div><h3 className="font-bold">Expense submitted</h3><p className="text-sm text-[#71808d]">Your manager and Finance can now see this claim.</p></div> : <div className="grid gap-4 py-4"><Input value={merchant} onChange={(event) => setMerchant(event.target.value)} placeholder="Merchant" /><div className="grid grid-cols-2 gap-3"><Input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="Amount (INR)" /><select value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-md border px-3"><option>Meals</option><option>Travel</option><option>Lodging</option></select></div><label className="grid min-h-24 cursor-pointer place-items-center rounded-xl border border-dashed border-[#bdc7cf] bg-[#f8fafb] p-4 text-center text-sm text-[#63717e] hover:border-[#ff6746]"><input type="file" accept="image/jpeg,image/png,application/pdf" className="sr-only" onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void inspectReceipt(selected); }} /><span><ReceiptText className="mx-auto mb-2 size-5" />{file ? file.name : "Choose a JPG, PNG, or PDF receipt"}</span></label>{analyzing && <p className="text-sm text-[#71808d]">Analyzing receipt integrity…</p>}{analysis && <div className={`rounded-xl border p-3 text-sm ${analysis.decision === "Ready for review" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}><b>{analysis.decision}</b><p className="mt-1">{analysis.detail}</p></div>}</div>}<DialogFooter>{saved ? <Button onClick={() => { setOpen(false); setSaved(false); setFile(null); setAnalysis(null); setMerchant(""); setAmount(""); }}>Done</Button> : <Button onClick={submitExpense} disabled={!file || analyzing || !merchant.trim() || !amount} className="bg-[#172532] text-white">Submit expense</Button>}</DialogFooter></DialogContent></Dialog>;
 }
 
-function Overview({ user }: { user: User }) {
+function Overview({ user, rows }: { user: User; rows: Expense[] }) {
   const roleCopy: Record<Role, { eyebrow: string; title: string; subtitle: string }> = {
     employee: { eyebrow: "MY EXPENSES", title: `Good morning, ${user.name.split(" ")[0]}`, subtitle: "Track your claims and reimbursement progress." },
     manager: { eyebrow: "TEAM SPENDING", title: "Three approvals need you", subtitle: "Review your team’s latest expense submissions." },
@@ -150,21 +164,22 @@ function Overview({ user }: { user: User }) {
       [user.role === "manager" ? "Pending approvals" : "In review", user.role === "manager" ? "3" : "14", FileCheck2],
       ["Reimbursed", "₹3,12,800", WalletCards], [user.role === "admin" ? "Active employees" : "Policy flags", user.role === "admin" ? "248" : "7", ShieldCheck],
     ].map(([label, value, Icon]) => <article key={String(label)} className="rounded-2xl border bg-white p-5"><div className="mb-5 grid size-10 place-items-center rounded-xl bg-[#f1f4f5]"><Icon className="size-5" /></div><p className="text-sm text-[#74818e]">{String(label)}</p><p className="mt-1 text-2xl font-bold tracking-[-.04em]">{String(value)}</p></article>)}</div>
-    <div className="grid gap-6 xl:grid-cols-[1.5fr_.8fr]"><section className="overflow-hidden rounded-2xl border bg-white"><div className="flex items-center justify-between border-b p-6"><div><h2 className="font-bold">Recent activity</h2><p className="text-sm text-[#7d8995]">Latest claims in your workspace</p></div></div><ExpenseTable rows={user.role === "employee" ? expenses.filter((item) => item.owner === user.name) : expenses.slice(0, 4)} action={user.role === "manager" ? "approve" : user.role === "finance" ? "verify" : undefined} /></section>
+    <div className="grid gap-6 xl:grid-cols-[1.5fr_.8fr]"><section className="overflow-hidden rounded-2xl border bg-white"><div className="flex items-center justify-between border-b p-6"><div><h2 className="font-bold">Recent activity</h2><p className="text-sm text-[#7d8995]">Latest claims in your workspace</p></div></div><ExpenseTable rows={user.role === "employee" ? rows.filter((item) => item.owner === user.name) : rows.slice(0, 5)} action={user.role === "manager" ? "approve" : user.role === "finance" ? "verify" : undefined} /></section>
       <aside className="rounded-2xl bg-[#172532] p-6 text-white"><Sparkles className="mb-5 text-[#ff8267]" /><h2 className="text-xl font-bold">94% policy compliant</h2><p className="mt-3 text-sm leading-6 text-[#b7c2cb]">AI checks found that most recent claims follow company policy. Three meal claims need attention.</p><div className="mt-6 rounded-xl bg-white/[.07] p-4"><div className="mb-2 flex justify-between text-sm"><span>Compliance</span><b>94%</b></div><Progress value={94} className="h-2 bg-white/10 [&_[data-slot=progress-indicator]]:bg-[#ff795b]" /></div></aside></div>
   </>;
 }
 
-function ListPage({ title, subtitle, user }: { title: string; subtitle: string; user: User }) {
+function ListPage({ title, subtitle, user, allRows }: { title: string; subtitle: string; user: User; allRows: Expense[] }) {
   const [query, setQuery] = useState("");
-  const rows = useMemo(() => expenses.filter((item) => `${item.merchant} ${item.owner} ${item.id}`.toLowerCase().includes(query.toLowerCase()) && (user.role !== "employee" || item.owner === user.name)), [query, user]);
+  const rows = useMemo(() => allRows.filter((item) => `${item.merchant} ${item.owner} ${item.id}`.toLowerCase().includes(query.toLowerCase()) && (user.role !== "employee" || item.owner === user.name)), [allRows, query, user]);
   return <><div className="mb-7"><h1 className="text-3xl font-bold tracking-[-.045em]">{title}</h1><p className="mt-2 text-[#71808d]">{subtitle}</p></div><section className="overflow-hidden rounded-2xl border bg-white"><div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between"><h2 className="font-bold">{rows.length} records</h2><div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#89949f]" /><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className="w-full pl-9 sm:w-64" />{query && <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="size-4" /></button>}</div></div><ExpenseTable rows={rows} action={title === "Approvals" ? "approve" : title === "Verification" ? "verify" : undefined} /></section></>;
 }
 
-function AIReviewPage() {
+function AIReviewPage({ submitted }: { submitted: Expense[] }) {
   const [resolved, setResolved] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const reviews = [
+    ...submitted.map((item) => ({ id: item.id, merchant: item.merchant, employee: item.owner, risk: "New submission", score: 35, tone: "text-violet-700 bg-violet-50 border-violet-200", reason: "Employee submission received. Automated file checks completed and Finance review is pending.", action: `Validate the ${item.category.toLowerCase()} receipt and ${money(item.amount)} claimed amount.` })),
     { id: "EX-1048", merchant: "The Westin", employee: "Riya Sharma", risk: "Possible edit", score: 78, tone: "text-red-700 bg-red-50 border-red-200", reason: "JPEG compression differs around the total amount. Editing metadata is present.", action: "Compare with card transaction and request the original image." },
     { id: "EX-1045", merchant: "Olive Bistro", employee: "Riya Sharma", risk: "Possible duplicate", score: 64, tone: "text-amber-800 bg-amber-50 border-amber-200", reason: "Merchant, date, and amount match an earlier claim from the same employee.", action: "Check invoice number and the earlier EX-0994 submission." },
     { id: "EX-1036", merchant: "City Cabs", employee: "Kabir Rao", risk: "Low quality", score: 42, tone: "text-blue-700 bg-blue-50 border-blue-200", reason: "The receipt is blurred and the invoice number could not be read reliably.", action: "Request a clearer photo before reimbursement." },
@@ -188,10 +203,16 @@ function AdminPage({ title }: { title: string }) {
 
 function App({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [view, setView] = useState("Overview");
+  const [submitted, setSubmitted] = useState<Expense[]>([]);
+  useEffect(() => {
+    try { setSubmitted(JSON.parse(localStorage.getItem("ledgerly:submitted-expenses") ?? "[]") as Expense[]); }
+    catch { setSubmitted([]); }
+  }, []);
+  const allRows = useMemo(() => [...submitted, ...expenses], [submitted]);
   const titles: Record<string, string> = { "My expenses": "Your submitted claims and their current status.", "Team expenses": "All expenses submitted by your direct reports.", Approvals: "Review and decide on claims awaiting manager approval.", Verification: "Validate claims, AI findings, and policy exceptions.", Reimbursements: "Track approved claims through payment.", Reports: "Review monthly, quarterly, and yearly spending.", };
   return <SidebarProvider className="min-h-screen bg-[#f4f7f8] text-[#172532]"><Sidebar collapsible="icon" className="border-r-0 bg-white"><SidebarHeader className="border-b p-5"><Brand /></SidebarHeader><SidebarContent className="px-3 py-5"><SidebarGroup><SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-[.12em] text-[#9aa4af]">{user.label} workspace</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{nav[user.role].map((item) => <SidebarMenuItem key={item.label}><SidebarMenuButton isActive={view === item.label} onClick={() => setView(item.label)} tooltip={item.label} className="h-11 rounded-xl px-3 data-[active=true]:bg-[#fff0eb] data-[active=true]:text-[#d95235]"><item.icon /><span>{item.label}</span>{item.count && <span className="ml-auto rounded-full bg-[#eef1f3] px-2 text-xs">{item.count}</span>}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent><SidebarFooter className="border-t p-3"><div className="mb-2 flex items-center gap-3 rounded-xl p-2"><div className="grid size-9 place-items-center rounded-full bg-[#172532] text-xs font-bold text-white">{user.initials}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{user.name}</p><p className="text-xs text-[#89949f]">{user.label}</p></div><ChevronDown className="size-4" /></div><SidebarMenuButton onClick={onLogout} className="h-10 rounded-xl text-[#687582]"><LogOut /><span>Sign out</span></SidebarMenuButton></SidebarFooter></Sidebar>
-    <SidebarInset className="bg-[#f4f7f8]"><header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b bg-white/90 px-4 backdrop-blur sm:px-8"><div className="flex items-center gap-3"><SidebarTrigger><Menu /></SidebarTrigger><div><p className="text-sm font-semibold">Wednesday, 30 September</p><p className="hidden text-xs text-[#89949f] sm:block">Northstar Labs · {user.label}</p></div></div><div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="relative rounded-xl"><Bell className="size-5" /><span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff6746]" /></Button>{user.role === "employee" && <NewExpense />}</div></header>
-      <main className="mx-auto w-full max-w-[1460px] p-4 sm:p-8 lg:p-9">{view === "Overview" ? <Overview user={user} /> : view === "Verification" ? <AIReviewPage /> : user.role === "admin" ? <AdminPage title={view} /> : <ListPage title={view} subtitle={titles[view] ?? "Review records and activity."} user={user} />}</main>
+    <SidebarInset className="bg-[#f4f7f8]"><header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b bg-white/90 px-4 backdrop-blur sm:px-8"><div className="flex items-center gap-3"><SidebarTrigger><Menu /></SidebarTrigger><div><p className="text-sm font-semibold">Wednesday, 30 September</p><p className="hidden text-xs text-[#89949f] sm:block">Northstar Labs · {user.label}</p></div></div><div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="relative rounded-xl"><Bell className="size-5" /><span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff6746]" /></Button>{user.role === "employee" && <NewExpense onSubmitted={(expense) => setSubmitted((items) => [expense, ...items])} />}</div></header>
+      <main className="mx-auto w-full max-w-[1460px] p-4 sm:p-8 lg:p-9">{view === "Overview" ? <Overview user={user} rows={allRows} /> : view === "Verification" ? <AIReviewPage submitted={submitted} /> : user.role === "admin" ? <AdminPage title={view} /> : <ListPage title={view} subtitle={titles[view] ?? "Review records and activity."} user={user} allRows={allRows} />}</main>
     </SidebarInset></SidebarProvider>;
 }
 
