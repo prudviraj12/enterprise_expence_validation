@@ -111,7 +111,11 @@ describe("Ledgerly modules", () => {
     await user.click(screen.getByRole("button", { name: "People" }));
     await user.click(screen.getByRole("button", { name: "Add user" }));
     await user.type(screen.getByLabelText("Record name"), "Priya Nair");
-    await user.type(screen.getByLabelText("Record details"), "Employee · Operations");
+    await user.type(screen.getByLabelText("User email"), "priya@ledgerly.test");
+    await user.type(screen.getByLabelText("Employee ID"), "EMP-088");
+    await user.selectOptions(screen.getByLabelText("User role"), "Manager");
+    await user.selectOptions(screen.getByLabelText("User department"), "Operations");
+    await user.type(screen.getByLabelText("Record details"), "Approves Operations travel expenses.");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(screen.getByText("Priya Nair")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Edit Priya Nair" }));
@@ -135,11 +139,24 @@ describe("Ledgerly modules", () => {
     expect(screen.getByText(/INR 2,500/)).toBeInTheDocument();
     expect(screen.getByText("Draft")).toBeInTheDocument();
 
-    for (const [moduleName, addLabel] of [["Departments", "Add department"], ["Settings", "Add setting"]] as const) {
-      await user.click(screen.getByRole("button", { name: moduleName }));
-      await user.click(screen.getByRole("button", { name: addLabel }));
-      expect(screen.getByRole("dialog")).toBeInTheDocument();
-      await user.click(screen.getByRole("button", { name: "Cancel" }));
-    }
+    await user.click(screen.getByRole("button", { name: "Departments" }));
+    await user.click(screen.getByRole("button", { name: "Add department" }));
+    await user.type(screen.getByLabelText("Record name"), "Customer Success");
+    await user.type(screen.getByLabelText("Department cost center"), "CC-505");
+    await user.type(screen.getByLabelText("Department budget"), "400000");
+    await user.type(screen.getByLabelText("Department lead"), "Sam Roy");
+    await user.type(screen.getByLabelText("Record details"), "Owns onboarding and customer retention expenses.");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(screen.getByText("Customer Success")).toBeInTheDocument();
+    expect(screen.getByText(/CC-505/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("button", { name: "Edit Approval workflow" }));
+    await user.selectOptions(screen.getByLabelText("Setting category"), "Approval workflow");
+    await user.clear(screen.getByLabelText("Record details"));
+    await user.type(screen.getByLabelText("Record details"), "Employee to Manager to Finance, with Admin escalation.");
+    await user.selectOptions(screen.getByLabelText("Record status"), "Enabled");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(screen.getByText(/Admin escalation/)).toBeInTheDocument();
   });
 });
