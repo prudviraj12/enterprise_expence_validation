@@ -103,4 +103,28 @@ describe("Ledgerly modules", () => {
       expect(screen.getByRole("heading", { name: new RegExp(moduleName === "Overview" ? "Everything is running smoothly" : moduleName, "i") })).toBeInTheDocument();
     }
   });
+
+  it("adds and edits Admin workspace records", async () => {
+    const user = userEvent.setup();
+    await openLogin(user);
+    await signIn(user, "Admin");
+    await user.click(screen.getByRole("button", { name: "People" }));
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    await user.type(screen.getByLabelText("Record name"), "Priya Nair");
+    await user.type(screen.getByLabelText("Record details"), "Employee · Operations");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(screen.getByText("Priya Nair")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit Priya Nair" }));
+    await user.clear(screen.getByLabelText("Record name"));
+    await user.type(screen.getByLabelText("Record name"), "Priya Nair Updated");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(screen.getByText("Priya Nair Updated")).toBeInTheDocument();
+
+    for (const [moduleName, addLabel] of [["Policies", "Add policy"], ["Departments", "Add department"], ["Settings", "Add setting"]] as const) {
+      await user.click(screen.getByRole("button", { name: moduleName }));
+      await user.click(screen.getByRole("button", { name: addLabel }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+    }
+  });
 });
