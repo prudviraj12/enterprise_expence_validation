@@ -1,227 +1,161 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  ArrowDownRight, ArrowUpRight, Bell, ChevronDown, CircleDollarSign,
-  FileCheck2, LayoutDashboard, Menu, Moon, MoreHorizontal, Plus,
-  ReceiptText, Search, Settings, ShieldCheck, Sparkles, Sun, Users,
-  WalletCards, X,
+  Bell, Building2, Check, ChevronDown, CircleDollarSign, FileCheck2,
+  FileText, LayoutDashboard, LogOut, Menu, Plus, ReceiptText, Search,
+  Settings, ShieldCheck, Sparkles, Users, WalletCards, X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import {
-  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
-  SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu,
-  SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger,
-} from "@/components/ui/sidebar";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-type ExpenseStatus = "Approved" | "In review" | "Needs info" | "Paid";
-type Expense = {
-  id: string; merchant: string; category: string; date: string;
-  amount: number; status: ExpenseStatus; initials: string; color: string;
+type Role = "employee" | "manager" | "finance" | "admin";
+type Status = "Approved" | "In review" | "Needs info" | "Paid";
+type Expense = { id: string; merchant: string; owner: string; category: string; date: string; amount: number; status: Status };
+type User = { role: Role; name: string; email: string; password: string; label: string; initials: string };
+
+const users: User[] = [
+  { role: "employee", name: "Riya Sharma", email: "employee@ledgerly.in", password: "Employee@123", label: "Employee", initials: "RS" },
+  { role: "manager", name: "Arjun Mehta", email: "manager@ledgerly.in", password: "Manager@123", label: "Manager", initials: "AM" },
+  { role: "finance", name: "Ananya Kapoor", email: "finance@ledgerly.in", password: "Finance@123", label: "Finance", initials: "AK" },
+  { role: "admin", name: "Dev Malhotra", email: "admin@ledgerly.in", password: "Admin@123", label: "Admin", initials: "DM" },
+];
+
+const expenses: Expense[] = [
+  { id: "EX-1048", merchant: "The Westin", owner: "Riya Sharma", category: "Lodging", date: "28 Sep 2026", amount: 18450, status: "In review" },
+  { id: "EX-1047", merchant: "IndiGo", owner: "Kabir Rao", category: "Travel", date: "27 Sep 2026", amount: 12890, status: "Approved" },
+  { id: "EX-1045", merchant: "Olive Bistro", owner: "Riya Sharma", category: "Meals", date: "25 Sep 2026", amount: 4280, status: "Needs info" },
+  { id: "EX-1042", merchant: "Adobe", owner: "Neha Iyer", category: "Software", date: "21 Sep 2026", amount: 1675, status: "Paid" },
+  { id: "EX-1039", merchant: "Uber", owner: "Riya Sharma", category: "Travel", date: "18 Sep 2026", amount: 860, status: "Paid" },
+];
+
+const nav: Record<Role, Array<{ label: string; icon: typeof LayoutDashboard; count?: number }>> = {
+  employee: [
+    { label: "Overview", icon: LayoutDashboard }, { label: "My expenses", icon: ReceiptText, count: 3 },
+    { label: "Reimbursements", icon: WalletCards },
+  ],
+  manager: [
+    { label: "Overview", icon: LayoutDashboard }, { label: "Team expenses", icon: Users },
+    { label: "Approvals", icon: FileCheck2, count: 3 }, { label: "Reports", icon: FileText },
+  ],
+  finance: [
+    { label: "Overview", icon: LayoutDashboard }, { label: "Verification", icon: ShieldCheck, count: 7 },
+    { label: "Reimbursements", icon: WalletCards }, { label: "Reports", icon: FileText },
+  ],
+  admin: [
+    { label: "Overview", icon: LayoutDashboard }, { label: "People", icon: Users },
+    { label: "Policies", icon: ShieldCheck }, { label: "Departments", icon: Building2 },
+    { label: "Settings", icon: Settings },
+  ],
 };
 
-const initialExpenses: Expense[] = [
-  { id: "EX-1048", merchant: "The Westin", category: "Lodging", date: "Sep 28, 2026", amount: 18450, status: "In review", initials: "TW", color: "bg-indigo-100 text-indigo-700" },
-  { id: "EX-1047", merchant: "IndiGo", category: "Travel", date: "Sep 27, 2026", amount: 12890, status: "Approved", initials: "IN", color: "bg-sky-100 text-sky-700" },
-  { id: "EX-1045", merchant: "Olive Bistro", category: "Meals", date: "Sep 25, 2026", amount: 4280, status: "Needs info", initials: "OB", color: "bg-amber-100 text-amber-700" },
-  { id: "EX-1042", merchant: "Adobe", category: "Software", date: "Sep 21, 2026", amount: 1675, status: "Paid", initials: "AD", color: "bg-rose-100 text-rose-700" },
-  { id: "EX-1039", merchant: "Uber", category: "Travel", date: "Sep 18, 2026", amount: 860, status: "Paid", initials: "UB", color: "bg-zinc-100 text-zinc-700" },
-];
-
-const statusClasses: Record<ExpenseStatus, string> = {
-  Approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  "In review": "border-blue-200 bg-blue-50 text-blue-700",
-  "Needs info": "border-amber-200 bg-amber-50 text-amber-800",
-  Paid: "border-zinc-200 bg-zinc-100 text-zinc-700",
+const statusStyle: Record<Status, string> = {
+  Approved: "border-emerald-200 bg-emerald-50 text-emerald-700", "In review": "border-blue-200 bg-blue-50 text-blue-700",
+  "Needs info": "border-amber-200 bg-amber-50 text-amber-800", Paid: "border-zinc-200 bg-zinc-100 text-zinc-700",
 };
+const money = (value: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value);
 
-const navItems = [
-  { label: "Overview", icon: LayoutDashboard },
-  { label: "My expenses", icon: ReceiptText, count: 8 },
-  { label: "Approvals", icon: FileCheck2, count: 3 },
-  { label: "Reimbursements", icon: WalletCards },
-];
-const adminItems = [
-  { label: "People", icon: Users }, { label: "Policies", icon: ShieldCheck },
-  { label: "Settings", icon: Settings },
-];
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value);
+function Brand() {
+  return <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-[#ff6746] text-white shadow-[0_8px_20px_rgba(255,103,70,.28)]"><ReceiptText className="size-5" /></div><div><p className="text-lg font-extrabold tracking-[-.04em]">Ledgerly</p><p className="text-xs text-[#7d8995]">Northstar Labs</p></div></div>;
 }
 
-function Logo() {
-  return <div className="flex items-center gap-3 px-2 py-1">
-    <div className="grid size-9 place-items-center rounded-xl bg-[#ff6b4a] text-white shadow-[0_7px_18px_rgba(255,107,74,.28)]"><ReceiptText className="size-5" strokeWidth={2.4} /></div>
-    <div><p className="text-[1.05rem] font-bold tracking-[-0.03em] text-[#18222d]">Ledgerly</p><p className="text-xs text-[#7b8794]">Northstar Labs</p></div>
-  </div>;
-}
+function Login({ onLogin }: { onLogin: (user: User) => void }) {
+  const [selected, setSelected] = useState<User>(users[0]);
+  const [email, setEmail] = useState(users[0].email);
+  const [password, setPassword] = useState(users[0].password);
+  const [error, setError] = useState("");
 
-function ExpenseDialog({ onAdd }: { onAdd: (expense: Expense) => void }) {
-  const [open, setOpen] = useState(false);
-  const [merchant, setMerchant] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Meals");
-
+  function choose(user: User) { setSelected(user); setEmail(user.email); setPassword(user.password); setError(""); }
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    const numericAmount = Number(amount);
-    if (!merchant.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0) return;
-    const initials = merchant.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
-    onAdd({ id: `EX-${1049 + Math.floor(Math.random() * 50)}`, merchant: merchant.trim(), category,
-      date: "Sep 30, 2026", amount: numericAmount, status: "In review", initials,
-      color: "bg-violet-100 text-violet-700" });
-    setMerchant(""); setAmount(""); setOpen(false);
+    const match = users.find((user) => user.email === email.trim().toLowerCase() && user.password === password);
+    if (!match) { setError("Email or password is incorrect."); return; }
+    onLogin(match);
   }
 
-  return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogTrigger asChild><Button className="h-10 rounded-xl bg-[#ff6b4a] px-4 font-semibold text-white shadow-[0_8px_20px_rgba(255,107,74,.24)] hover:bg-[#ec5b3c]"><Plus className="size-4" /> New expense</Button></DialogTrigger>
-    <DialogContent className="rounded-2xl border-[#dde3e8] sm:max-w-[480px]">
-      <form onSubmit={submit}>
-        <DialogHeader><DialogTitle className="text-xl tracking-tight">Add an expense</DialogTitle><DialogDescription>Enter the purchase details. You can attach the receipt after saving.</DialogDescription></DialogHeader>
-        <div className="grid gap-4 py-6">
-          <label className="grid gap-2 text-sm font-semibold text-[#344150]">Merchant<Input value={merchant} onChange={(event) => setMerchant(event.target.value)} placeholder="e.g. Taj Hotels" className="h-11 rounded-xl" autoFocus /></label>
-          <div className="grid grid-cols-2 gap-4">
-            <label className="grid gap-2 text-sm font-semibold text-[#344150]">Amount (INR)<Input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="0.00" className="h-11 rounded-xl" /></label>
-            <label className="grid gap-2 text-sm font-semibold text-[#344150]">Category<select value={category} onChange={(event) => setCategory(event.target.value)} className="h-11 rounded-xl border border-input bg-transparent px-3 font-normal outline-none focus:ring-2 focus:ring-ring/40"><option>Meals</option><option>Travel</option><option>Lodging</option><option>Software</option><option>Supplies</option></select></label>
-          </div>
-          <button type="button" className="grid min-h-24 place-items-center rounded-xl border border-dashed border-[#c7d0d9] bg-[#f8fafb] text-sm text-[#64717f] transition hover:border-[#ff8f76] hover:bg-[#fff8f5]"><span className="flex items-center gap-2"><ReceiptText className="size-4" /> Add receipt</span></button>
-        </div>
-        <DialogFooter><Button type="button" variant="outline" className="rounded-xl" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" className="rounded-xl bg-[#18222d] text-white hover:bg-[#273747]">Save expense</Button></DialogFooter>
+  return <main className="grid min-h-screen bg-[#f4f7f8] lg:grid-cols-[1.08fr_.92fr]">
+    <section className="relative hidden overflow-hidden bg-[#172532] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+      <div className="absolute -right-28 -top-28 size-[420px] rounded-full border-[80px] border-white/[.035]" />
+      <Brand />
+      <div className="relative max-w-xl"><div className="mb-6 grid size-12 place-items-center rounded-2xl bg-[#ff6746]"><Sparkles className="size-5" /></div><h1 className="text-5xl font-bold leading-[1.06] tracking-[-.055em]">Expenses move faster when every detail is clear.</h1><p className="mt-6 max-w-lg text-lg leading-8 text-[#b8c3cb]">Submit receipts, review policy checks, approve claims, and track reimbursements from one secure workspace.</p></div>
+      <div className="flex gap-8 text-sm text-[#aeb9c2]"><span>AI receipt review</span><span>Policy controls</span><span>Complete audit trail</span></div>
+    </section>
+    <section className="flex items-center justify-center p-5 sm:p-10"><div className="w-full max-w-[470px]">
+      <div className="mb-10 lg:hidden"><Brand /></div>
+      <p className="text-sm font-bold text-[#ff6746]">WELCOME BACK</p><h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">Sign in to your workspace</h2><p className="mt-2 text-[#71808d]">Choose a demo role to explore its complete experience.</p>
+      <div className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4">{users.map((user) => <button key={user.role} onClick={() => choose(user)} className={`rounded-xl border px-2 py-3 text-sm font-semibold transition ${selected.role === user.role ? "border-[#ff6746] bg-[#fff0eb] text-[#d95235]" : "border-[#dfe5e9] bg-white text-[#687582] hover:border-[#bac4cc]"}`}>{user.label}</button>)}</div>
+      <form onSubmit={submit} className="mt-6 rounded-2xl border border-[#e0e6e9] bg-white p-6 shadow-[0_20px_55px_rgba(20,35,48,.08)] sm:p-8">
+        <div className="mb-5 flex items-center gap-3 rounded-xl bg-[#f5f7f8] p-3"><div className="grid size-10 place-items-center rounded-full bg-[#172532] text-xs font-bold text-white">{selected.initials}</div><div><p className="font-semibold">{selected.name}</p><p className="text-xs text-[#7d8995]">{selected.label} demo account</p></div></div>
+        <label className="grid gap-2 text-sm font-semibold">Email address<Input value={email} onChange={(event) => setEmail(event.target.value)} className="h-11 rounded-xl" /></label>
+        <label className="mt-4 grid gap-2 text-sm font-semibold">Password<Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-11 rounded-xl" /></label>
+        {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
+        <Button type="submit" className="mt-6 h-11 w-full rounded-xl bg-[#172532] font-semibold text-white hover:bg-[#26394b]">Sign in as {selected.label}</Button>
+        <p className="mt-4 text-center text-xs text-[#89949f]">Demo credentials are filled automatically.</p>
       </form>
-    </DialogContent>
-  </Dialog>;
+    </div></section>
+  </main>;
+}
+
+function ExpenseTable({ rows, action }: { rows: Expense[]; action?: "approve" | "verify" }) {
+  return <div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#fafbfb]"><TableHead className="pl-6">Expense</TableHead><TableHead>Employee</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead>{action && <TableHead className="pr-6 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>{rows.map((expense) => <TableRow key={expense.id}><TableCell className="py-4 pl-6"><p className="font-semibold">{expense.merchant}</p><p className="text-xs text-[#89949f]">{expense.id} · {expense.category}</p></TableCell><TableCell>{expense.owner}</TableCell><TableCell>{expense.date}</TableCell><TableCell><Badge variant="outline" className={`rounded-full ${statusStyle[expense.status]}`}>{expense.status}</Badge></TableCell><TableCell className="text-right font-bold">{money(expense.amount)}</TableCell>{action && <TableCell className="pr-6 text-right"><Button size="sm" className="rounded-lg bg-[#172532] text-white"><Check className="size-4" /> {action === "approve" ? "Approve" : "Verify"}</Button></TableCell>}</TableRow>)}</TableBody></Table></div>;
+}
+
+function NewExpense() {
+  const [open, setOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
+  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button className="rounded-xl bg-[#ff6746] text-white hover:bg-[#e95a3c]"><Plus className="size-4" /> New expense</Button></DialogTrigger><DialogContent className="rounded-2xl"><DialogHeader><DialogTitle>Submit an expense</DialogTitle><DialogDescription>Add the purchase details and receipt.</DialogDescription></DialogHeader>{saved ? <div className="grid place-items-center gap-3 py-10 text-center"><div className="grid size-12 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check /></div><h3 className="font-bold">Expense submitted</h3><p className="text-sm text-[#71808d]">Your manager has been notified.</p></div> : <div className="grid gap-4 py-4"><Input placeholder="Merchant" /><div className="grid grid-cols-2 gap-3"><Input placeholder="Amount (INR)" /><select className="rounded-md border px-3"><option>Meals</option><option>Travel</option><option>Lodging</option></select></div><button className="h-24 rounded-xl border border-dashed text-sm text-[#71808d]">Upload receipt</button></div>}<DialogFooter>{saved ? <Button onClick={() => { setOpen(false); setSaved(false); }}>Done</Button> : <Button onClick={() => setSaved(true)} className="bg-[#172532] text-white">Submit expense</Button>}</DialogFooter></DialogContent></Dialog>;
+}
+
+function Overview({ user }: { user: User }) {
+  const roleCopy: Record<Role, { eyebrow: string; title: string; subtitle: string }> = {
+    employee: { eyebrow: "MY EXPENSES", title: `Good morning, ${user.name.split(" ")[0]}`, subtitle: "Track your claims and reimbursement progress." },
+    manager: { eyebrow: "TEAM SPENDING", title: "Three approvals need you", subtitle: "Review your team’s latest expense submissions." },
+    finance: { eyebrow: "FINANCE OVERVIEW", title: "Seven claims need verification", subtitle: "Resolve policy flags and keep reimbursements moving." },
+    admin: { eyebrow: "COMPANY OVERVIEW", title: "Everything is running smoothly", subtitle: "Monitor people, policies, and company-wide spend." },
+  };
+  const copy = roleCopy[user.role];
+  return <><div className="mb-7"><p className="text-xs font-bold tracking-[.12em] text-[#ff6746]">{copy.eyebrow}</p><h1 className="mt-2 text-3xl font-bold tracking-[-.045em]">{copy.title}</h1><p className="mt-2 text-[#71808d]">{copy.subtitle}</p></div>
+    <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
+      [user.role === "employee" ? "Claimed this month" : "Total spend", user.role === "employee" ? "₹23,590" : "₹4,28,650", CircleDollarSign],
+      [user.role === "manager" ? "Pending approvals" : "In review", user.role === "manager" ? "3" : "14", FileCheck2],
+      ["Reimbursed", "₹3,12,800", WalletCards], [user.role === "admin" ? "Active employees" : "Policy flags", user.role === "admin" ? "248" : "7", ShieldCheck],
+    ].map(([label, value, Icon]) => <article key={String(label)} className="rounded-2xl border bg-white p-5"><div className="mb-5 grid size-10 place-items-center rounded-xl bg-[#f1f4f5]"><Icon className="size-5" /></div><p className="text-sm text-[#74818e]">{String(label)}</p><p className="mt-1 text-2xl font-bold tracking-[-.04em]">{String(value)}</p></article>)}</div>
+    <div className="grid gap-6 xl:grid-cols-[1.5fr_.8fr]"><section className="overflow-hidden rounded-2xl border bg-white"><div className="flex items-center justify-between border-b p-6"><div><h2 className="font-bold">Recent activity</h2><p className="text-sm text-[#7d8995]">Latest claims in your workspace</p></div></div><ExpenseTable rows={user.role === "employee" ? expenses.filter((item) => item.owner === user.name) : expenses.slice(0, 4)} action={user.role === "manager" ? "approve" : user.role === "finance" ? "verify" : undefined} /></section>
+      <aside className="rounded-2xl bg-[#172532] p-6 text-white"><Sparkles className="mb-5 text-[#ff8267]" /><h2 className="text-xl font-bold">94% policy compliant</h2><p className="mt-3 text-sm leading-6 text-[#b7c2cb]">AI checks found that most recent claims follow company policy. Three meal claims need attention.</p><div className="mt-6 rounded-xl bg-white/[.07] p-4"><div className="mb-2 flex justify-between text-sm"><span>Compliance</span><b>94%</b></div><Progress value={94} className="h-2 bg-white/10 [&_[data-slot=progress-indicator]]:bg-[#ff795b]" /></div></aside></div>
+  </>;
+}
+
+function ListPage({ title, subtitle, user }: { title: string; subtitle: string; user: User }) {
+  const [query, setQuery] = useState("");
+  const rows = useMemo(() => expenses.filter((item) => `${item.merchant} ${item.owner} ${item.id}`.toLowerCase().includes(query.toLowerCase()) && (user.role !== "employee" || item.owner === user.name)), [query, user]);
+  return <><div className="mb-7"><h1 className="text-3xl font-bold tracking-[-.045em]">{title}</h1><p className="mt-2 text-[#71808d]">{subtitle}</p></div><section className="overflow-hidden rounded-2xl border bg-white"><div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between"><h2 className="font-bold">{rows.length} records</h2><div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#89949f]" /><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className="w-full pl-9 sm:w-64" />{query && <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="size-4" /></button>}</div></div><ExpenseTable rows={rows} action={title === "Approvals" ? "approve" : title === "Verification" ? "verify" : undefined} /></section></>;
+}
+
+function AdminPage({ title }: { title: string }) {
+  const content: Record<string, Array<[string, string, string]>> = {
+    People: [["Riya Sharma", "Employee · Sales", "Active"], ["Arjun Mehta", "Manager · Sales", "Active"], ["Ananya Kapoor", "Finance", "Active"], ["Neha Iyer", "Employee · Product", "Active"]],
+    Policies: [["Meals limit", "₹1,500 per day", "Active"], ["Hotel limit", "₹12,000 per night", "Active"], ["Weekend spending", "Manager approval required", "Active"], ["Travel class", "Economy for domestic travel", "Active"]],
+    Departments: [["Sales", "48 employees", "CC-101"], ["Product", "76 employees", "CC-202"], ["Operations", "54 employees", "CC-303"], ["Finance", "18 employees", "CC-404"]],
+    Settings: [["Company profile", "Northstar Labs Pvt Ltd", "Configured"], ["Base currency", "Indian Rupee (INR)", "Configured"], ["Approval workflow", "Manager → Finance", "Active"], ["Email notifications", "SMTP delivery", "Enabled"]],
+  };
+  return <><div className="mb-7 flex items-end justify-between"><div><h1 className="text-3xl font-bold tracking-[-.045em]">{title}</h1><p className="mt-2 text-[#71808d]">Manage {title.toLowerCase()} across the company.</p></div><Button className="rounded-xl bg-[#172532] text-white"><Plus className="size-4" /> Add {title === "People" ? "user" : title.slice(0, -1).toLowerCase()}</Button></div><section className="rounded-2xl border bg-white p-2">{content[title].map(([name, detail, state]) => <div key={name} className="flex items-center gap-4 border-b p-4 last:border-0"><div className="grid size-10 place-items-center rounded-xl bg-[#f0f3f5] font-bold text-[#566573]">{name.slice(0, 2).toUpperCase()}</div><div className="flex-1"><p className="font-semibold">{name}</p><p className="text-sm text-[#7d8995]">{detail}</p></div><Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 text-emerald-700">{state}</Badge><Button variant="ghost" size="sm">Edit</Button></div>)}</section></>;
+}
+
+function App({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [view, setView] = useState("Overview");
+  const titles: Record<string, string> = { "My expenses": "Your submitted claims and their current status.", "Team expenses": "All expenses submitted by your direct reports.", Approvals: "Review and decide on claims awaiting manager approval.", Verification: "Validate claims, AI findings, and policy exceptions.", Reimbursements: "Track approved claims through payment.", Reports: "Review monthly, quarterly, and yearly spending.", };
+  return <SidebarProvider className="min-h-screen bg-[#f4f7f8] text-[#172532]"><Sidebar collapsible="icon" className="border-r-0 bg-white"><SidebarHeader className="border-b p-5"><Brand /></SidebarHeader><SidebarContent className="px-3 py-5"><SidebarGroup><SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-[.12em] text-[#9aa4af]">{user.label} workspace</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{nav[user.role].map((item) => <SidebarMenuItem key={item.label}><SidebarMenuButton isActive={view === item.label} onClick={() => setView(item.label)} tooltip={item.label} className="h-11 rounded-xl px-3 data-[active=true]:bg-[#fff0eb] data-[active=true]:text-[#d95235]"><item.icon /><span>{item.label}</span>{item.count && <span className="ml-auto rounded-full bg-[#eef1f3] px-2 text-xs">{item.count}</span>}</SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent><SidebarFooter className="border-t p-3"><div className="mb-2 flex items-center gap-3 rounded-xl p-2"><div className="grid size-9 place-items-center rounded-full bg-[#172532] text-xs font-bold text-white">{user.initials}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{user.name}</p><p className="text-xs text-[#89949f]">{user.label}</p></div><ChevronDown className="size-4" /></div><SidebarMenuButton onClick={onLogout} className="h-10 rounded-xl text-[#687582]"><LogOut /><span>Sign out</span></SidebarMenuButton></SidebarFooter></Sidebar>
+    <SidebarInset className="bg-[#f4f7f8]"><header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b bg-white/90 px-4 backdrop-blur sm:px-8"><div className="flex items-center gap-3"><SidebarTrigger><Menu /></SidebarTrigger><div><p className="text-sm font-semibold">Wednesday, 30 September</p><p className="hidden text-xs text-[#89949f] sm:block">Northstar Labs · {user.label}</p></div></div><div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="relative rounded-xl"><Bell className="size-5" /><span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff6746]" /></Button>{user.role === "employee" && <NewExpense />}</div></header>
+      <main className="mx-auto w-full max-w-[1460px] p-4 sm:p-8 lg:p-9">{view === "Overview" ? <Overview user={user} /> : user.role === "admin" ? <AdminPage title={view} /> : <ListPage title={view} subtitle={titles[view] ?? "Review records and activity."} user={user} />}</main>
+    </SidebarInset></SidebarProvider>;
 }
 
 export default function Home() {
-  const [expenses, setExpenses] = useState(initialExpenses);
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<"All" | ExpenseStatus>("All");
-  const [active, setActive] = useState("Overview");
-  const [dark, setDark] = useState(false);
-  const filteredExpenses = useMemo(() => expenses.filter((expense) =>
-    `${expense.merchant} ${expense.category} ${expense.id}`.toLowerCase().includes(query.toLowerCase()) &&
-    (status === "All" || expense.status === status)), [expenses, query, status]);
-
-  useEffect(() => {
-    const context = (document as Document & {
-      modelContext?: {
-        registerTool: (tool: {
-          name: string;
-          title: string;
-          description: string;
-          inputSchema: object;
-          annotations: { readOnlyHint: boolean; untrustedContentHint: boolean };
-          execute: (input: unknown) => unknown;
-        }, options: { signal: AbortSignal }) => void | Promise<void>;
-      };
-    }).modelContext;
-    if (!context?.registerTool) return;
-    const lifecycle = new AbortController();
-    void Promise.resolve(context.registerTool({
-      name: "create_expense",
-      title: "Create expense",
-      description: "Create a submitted expense and add it to the visible recent expense list.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          merchant: { type: "string", minLength: 1 },
-          amount: { type: "number", exclusiveMinimum: 0 },
-          category: { type: "string", enum: ["Meals", "Travel", "Lodging", "Software", "Supplies"] },
-        },
-        required: ["merchant", "amount", "category"],
-        additionalProperties: false,
-      },
-      annotations: { readOnlyHint: false, untrustedContentHint: false },
-      execute(input) {
-        const value = input as { merchant?: unknown; amount?: unknown; category?: unknown };
-        if (typeof value.merchant !== "string" || !value.merchant.trim() ||
-            typeof value.amount !== "number" || !Number.isFinite(value.amount) || value.amount <= 0 ||
-            typeof value.category !== "string" || !["Meals", "Travel", "Lodging", "Software", "Supplies"].includes(value.category)) {
-          throw new Error("Merchant, positive amount, and a supported category are required.");
-        }
-        const expense: Expense = {
-          id: `EX-${1049 + Math.floor(Math.random() * 50)}`,
-          merchant: value.merchant.trim(), category: value.category,
-          date: "Sep 30, 2026", amount: value.amount, status: "In review",
-          initials: value.merchant.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase(),
-          color: "bg-violet-100 text-violet-700",
-        };
-        setExpenses((current) => [expense, ...current]);
-        return { id: expense.id, status: expense.status };
-      },
-    }, { signal: lifecycle.signal })).catch(() => undefined);
-    return () => lifecycle.abort();
-  }, []);
-
-  return <div className={dark ? "dark" : ""}>
-    <SidebarProvider className="min-h-screen bg-[#f4f7f8] text-[#18222d]">
-      <Sidebar collapsible="icon" className="border-r-0 bg-white">
-        <SidebarHeader className="border-b border-[#edf0f2] px-3 py-5"><Logo /></SidebarHeader>
-        <SidebarContent className="px-3 py-4">
-          <SidebarGroup><SidebarGroupLabel className="px-2 text-[11px] font-bold uppercase tracking-[.12em] text-[#9aa4af]">Workspace</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>
-            {navItems.map((item) => <SidebarMenuItem key={item.label}><SidebarMenuButton isActive={active === item.label} onClick={() => setActive(item.label)} tooltip={item.label} className="h-11 rounded-xl px-3 text-[.92rem] font-medium data-[active=true]:bg-[#fff0eb] data-[active=true]:text-[#dc5132]"><item.icon className="size-[18px]" /><span>{item.label}</span>{item.count && <span className="ml-auto rounded-full bg-[#edf1f3] px-2 py-0.5 text-xs text-[#65717e]">{item.count}</span>}</SidebarMenuButton></SidebarMenuItem>)}
-          </SidebarMenu></SidebarGroupContent></SidebarGroup>
-          <SidebarGroup><SidebarGroupLabel className="px-2 text-[11px] font-bold uppercase tracking-[.12em] text-[#9aa4af]">Manage</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>
-            {adminItems.map((item) => <SidebarMenuItem key={item.label}><SidebarMenuButton isActive={active === item.label} onClick={() => setActive(item.label)} tooltip={item.label} className="h-11 rounded-xl px-3 text-[.92rem] font-medium data-[active=true]:bg-[#fff0eb] data-[active=true]:text-[#dc5132]"><item.icon className="size-[18px]" /><span>{item.label}</span></SidebarMenuButton></SidebarMenuItem>)}
-          </SidebarMenu></SidebarGroupContent></SidebarGroup>
-        </SidebarContent>
-        <SidebarFooter className="border-t border-[#edf0f2] p-3"><div className="flex items-center gap-3 rounded-xl p-2"><div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#18222d] text-xs font-bold text-white">AK</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">Ananya Kapoor</p><p className="truncate text-xs text-[#89949f]">Finance admin</p></div><ChevronDown className="size-4 text-[#89949f]" /></div></SidebarFooter>
-      </Sidebar>
-
-      <SidebarInset className="min-w-0 bg-[#f4f7f8]">
-        <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-[#e6ebee] bg-white/90 px-4 backdrop-blur-xl sm:px-7 lg:px-9">
-          <div className="flex items-center gap-3"><SidebarTrigger className="md:hidden" aria-label="Open navigation"><Menu className="size-5" /></SidebarTrigger><div><p className="text-sm font-semibold">Wednesday, 30 September</p><p className="hidden text-xs text-[#84909c] sm:block">Keep your expenses moving.</p></div></div>
-          <div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="rounded-xl text-[#64717f]" onClick={() => setDark((value) => !value)} aria-label="Toggle color theme">{dark ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}</Button><Button variant="ghost" size="icon" className="relative rounded-xl text-[#64717f]" aria-label="Notifications"><Bell className="size-[18px]" /><span className="absolute right-2 top-2 size-2 rounded-full border-2 border-white bg-[#ff6b4a]" /></Button><ExpenseDialog onAdd={(expense) => setExpenses((current) => [expense, ...current])} /></div>
-        </header>
-
-        <main className="mx-auto w-full max-w-[1480px] px-4 py-7 sm:px-7 lg:px-9 lg:py-9">
-          <section className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div><p className="mb-1 text-sm font-semibold text-[#ff6b4a]">Finance overview</p><h1 className="text-3xl font-bold tracking-[-.04em] sm:text-[2.15rem]">Good morning, Ananya</h1><p className="mt-2 text-[#6f7c89]">Here’s what needs your attention across company spending.</p></div>
-            <div className="flex items-center gap-2 self-start rounded-xl border border-[#dfe5e9] bg-white p-1 text-sm shadow-sm"><button className="rounded-lg bg-[#18222d] px-3 py-1.5 font-semibold text-white">This month</button><button className="px-3 py-1.5 text-[#71808e]">Quarter</button><button className="px-3 py-1.5 text-[#71808e]">Year</button></div>
-          </section>
-
-          <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: "Total spend", value: "₹4,28,650", detail: "12.4% from August", icon: CircleDollarSign, trend: "up" },
-              { label: "Awaiting approval", value: "₹86,420", detail: "14 expenses", icon: FileCheck2, trend: "down" },
-              { label: "Reimbursed", value: "₹3,12,800", detail: "73% of monthly spend", icon: WalletCards, trend: "up" },
-              { label: "Policy flags", value: "7", detail: "3 need attention", icon: ShieldCheck, trend: "down" },
-            ].map((metric) => <article key={metric.label} className="rounded-2xl border border-[#e1e7ea] bg-white p-5 shadow-[0_1px_2px_rgba(27,39,51,.03)]"><div className="mb-5 flex items-start justify-between"><div className="grid size-10 place-items-center rounded-xl bg-[#f1f4f5] text-[#53616e]"><metric.icon className="size-[19px]" /></div>{metric.trend === "up" ? <ArrowUpRight className="size-4 text-emerald-600" /> : <ArrowDownRight className="size-4 text-[#ff6b4a]" />}</div><p className="text-sm font-medium text-[#74818e]">{metric.label}</p><p className="mt-1 text-2xl font-bold tracking-[-.04em]">{metric.value}</p><p className="mt-2 text-xs text-[#8a96a2]">{metric.detail}</p></article>)}
-          </section>
-
-          <section className="mb-6 grid gap-6 xl:grid-cols-[1.55fr_.85fr]">
-            <article className="overflow-hidden rounded-2xl border border-[#e1e7ea] bg-white p-5 shadow-[0_1px_2px_rgba(27,39,51,.03)] sm:p-6">
-              <div className="mb-7 flex items-start justify-between"><div><h2 className="font-bold tracking-[-.02em]">Spend trend</h2><p className="mt-1 text-sm text-[#7b8794]">Approved and submitted expenses</p></div><Badge variant="outline" className="rounded-lg border-[#dfe5e9] px-2.5 py-1 font-medium text-[#63717e]">Sep 2026</Badge></div>
-              <div className="relative h-[220px]"><div className="absolute inset-0 flex flex-col justify-between pb-7"><span className="border-t border-dashed border-[#e8ecef]" /><span className="border-t border-dashed border-[#e8ecef]" /><span className="border-t border-dashed border-[#e8ecef]" /><span className="border-t border-dashed border-[#e8ecef]" /></div><div className="absolute inset-x-0 bottom-0 top-1 flex items-end justify-between gap-3 px-2">{[38, 55, 46, 72, 60, 85, 78].map((height, index) => <div key={index} className="group flex h-full flex-1 items-end justify-center"><div className="w-full max-w-11 rounded-t-lg bg-[#26394b] transition-all group-hover:bg-[#ff6b4a]" style={{ height: `${height}%` }} /></div>)}</div><div className="absolute inset-x-0 bottom-0 flex justify-between px-2 text-xs font-medium text-[#8c97a2]">{["1 Sep", "5", "10", "15", "20", "25", "30"].map((day) => <span key={day}>{day}</span>)}</div></div>
-            </article>
-            <article className="rounded-2xl bg-[#172532] p-6 text-white shadow-[0_18px_45px_rgba(20,35,48,.16)]">
-              <div className="mb-6 flex items-start justify-between"><div><div className="mb-3 flex items-center gap-2 text-[#ff8b71]"><Sparkles className="size-4" /><span className="text-xs font-bold uppercase tracking-[.12em]">AI review</span></div><h2 className="text-xl font-bold tracking-[-.03em]">Spending looks healthy</h2></div><MoreHorizontal className="size-5 text-white/50" /></div>
-              <p className="mb-6 text-sm leading-6 text-[#b7c2cb]">94% of expenses match company policy. Meal claims in Sales are trending slightly above their monthly average.</p>
-              <div className="rounded-xl bg-white/[.07] p-4"><div className="mb-2 flex justify-between text-sm"><span className="text-[#c5ced5]">Policy compliance</span><strong>94%</strong></div><Progress value={94} className="h-2 bg-white/10 [&_[data-slot=progress-indicator]]:bg-[#ff795b]" /><button className="mt-4 flex items-center gap-2 text-sm font-semibold text-[#ff9b84]">Review 7 flagged expenses <ArrowUpRight className="size-4" /></button></div>
-            </article>
-          </section>
-
-          <section className="overflow-hidden rounded-2xl border border-[#e1e7ea] bg-white shadow-[0_1px_2px_rgba(27,39,51,.03)]">
-            <div className="flex flex-col gap-4 border-b border-[#e9edef] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div><h2 className="font-bold tracking-[-.02em]">Recent expenses</h2><p className="mt-1 text-sm text-[#7b8794]">Track the latest submissions and reimbursements.</p></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#919ca7]" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search expenses" className="h-10 w-full rounded-xl border-[#dfe5e9] bg-[#f9fafb] pl-9 sm:w-52" />{query && <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#919ca7]" aria-label="Clear search"><X className="size-3.5" /></button>}</div><select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="h-10 rounded-xl border border-[#dfe5e9] bg-white px-3 text-sm font-medium text-[#556370] outline-none focus:ring-2 focus:ring-[#ff6b4a]/25"><option>All</option><option>Approved</option><option>In review</option><option>Needs info</option><option>Paid</option></select></div></div>
-            <div className="overflow-x-auto"><Table><TableHeader><TableRow className="border-[#edf0f2] bg-[#fafbfb] hover:bg-[#fafbfb]"><TableHead className="pl-6 text-xs font-bold uppercase tracking-[.08em] text-[#8b96a1]">Merchant</TableHead><TableHead className="text-xs font-bold uppercase tracking-[.08em] text-[#8b96a1]">Category</TableHead><TableHead className="text-xs font-bold uppercase tracking-[.08em] text-[#8b96a1]">Date</TableHead><TableHead className="text-xs font-bold uppercase tracking-[.08em] text-[#8b96a1]">Status</TableHead><TableHead className="pr-6 text-right text-xs font-bold uppercase tracking-[.08em] text-[#8b96a1]">Amount</TableHead></TableRow></TableHeader><TableBody>
-              {filteredExpenses.map((expense) => <TableRow key={expense.id} className="border-[#edf0f2]"><TableCell className="py-4 pl-6"><div className="flex items-center gap-3"><div className={`grid size-9 place-items-center rounded-xl text-[11px] font-bold ${expense.color}`}>{expense.initials}</div><div><p className="font-semibold">{expense.merchant}</p><p className="text-xs text-[#8a96a2]">{expense.id}</p></div></div></TableCell><TableCell className="text-sm text-[#5f6c79]">{expense.category}</TableCell><TableCell className="text-sm text-[#5f6c79]">{expense.date}</TableCell><TableCell><Badge variant="outline" className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses[expense.status]}`}>{expense.status}</Badge></TableCell><TableCell className="pr-6 text-right font-bold">{formatCurrency(expense.amount)}</TableCell></TableRow>)}
-              {filteredExpenses.length === 0 && <TableRow><TableCell colSpan={5} className="h-32 text-center text-[#7b8794]">No expenses match your search.</TableCell></TableRow>}
-            </TableBody></Table></div>
-            <div className="flex items-center justify-between border-t border-[#edf0f2] px-6 py-4 text-sm"><span className="text-[#7b8794]">Showing {filteredExpenses.length} of {expenses.length} expenses</span><button className="font-semibold text-[#e05b3d]">View all expenses</button></div>
-          </section>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
-  </div>;
+  const [user, setUser] = useState<User | null>(null);
+  return user ? <App user={user} onLogout={() => setUser(null)} /> : <Login onLogin={setUser} />;
 }
