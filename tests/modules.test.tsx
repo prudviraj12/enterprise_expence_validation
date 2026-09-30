@@ -120,7 +120,22 @@ describe("Ledgerly modules", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(screen.getByText("Priya Nair Updated")).toBeInTheDocument();
 
-    for (const [moduleName, addLabel] of [["Policies", "Add policy"], ["Departments", "Add department"], ["Settings", "Add setting"]] as const) {
+    await user.click(screen.getByRole("button", { name: "Policies" }));
+    await user.click(screen.getByRole("button", { name: "Add policy" }));
+    await user.type(screen.getByLabelText("Record name"), "Client meals policy");
+    await user.selectOptions(screen.getByLabelText("Policy category"), "Meals");
+    await user.selectOptions(screen.getByLabelText("Policy rule type"), "Spending limit");
+    await user.type(screen.getByLabelText("Policy limit"), "2500");
+    await user.selectOptions(screen.getByLabelText("Policy currency"), "INR");
+    await user.selectOptions(screen.getByLabelText("Policy scope"), "Department");
+    await user.type(screen.getByLabelText("Record details"), "Attach an itemized receipt and attendee list.");
+    await user.selectOptions(screen.getByLabelText("Record status"), "Draft");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(screen.getByText("Client meals policy")).toBeInTheDocument();
+    expect(screen.getByText(/INR 2,500/)).toBeInTheDocument();
+    expect(screen.getByText("Draft")).toBeInTheDocument();
+
+    for (const [moduleName, addLabel] of [["Departments", "Add department"], ["Settings", "Add setting"]] as const) {
       await user.click(screen.getByRole("button", { name: moduleName }));
       await user.click(screen.getByRole("button", { name: addLabel }));
       expect(screen.getByRole("dialog")).toBeInTheDocument();
