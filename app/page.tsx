@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Bell, Building2, Check, ChevronDown, CircleDollarSign, FileCheck2,
+  ArrowRight, BarChart3, Bell, BrainCircuit, Building2, Check, ChevronDown, CircleDollarSign, FileCheck2,
   FileText, LayoutDashboard, LogOut, Menu, Plus, ReceiptText, Search,
-  Settings, ShieldCheck, Sparkles, Users, WalletCards, X,
+  ScanLine, Settings, ShieldCheck, Sparkles, TrendingUp, Users, WalletCards, Workflow, X,
 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -67,7 +68,45 @@ function Brand() {
   return <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-[#ff6746] text-white shadow-[0_8px_20px_rgba(255,103,70,.28)]"><ReceiptText className="size-5" /></div><div><p className="text-lg font-extrabold tracking-[-.04em]">Ledgerly</p><p className="text-xs text-[#7d8995]">Northstar Labs</p></div></div>;
 }
 
-function Login({ onLogin }: { onLogin: (user: User) => void }) {
+function Landing({ onStart }: { onStart: () => void }) {
+  const reduceMotion = useReducedMotion();
+  const enter = (delay = 0) => ({ initial: { opacity: 0, y: reduceMotion ? 0 : 22 }, animate: { opacity: 1, y: 0 }, transition: { duration: reduceMotion ? 0 : .55, delay } });
+  const roles = [
+    ["Employee", "Submit expenses and track every reimbursement.", ReceiptText, "01"],
+    ["Manager", "Confirm the business purpose for your team.", FileCheck2, "02"],
+    ["Finance", "Validate receipts, policy, fraud, and payment.", WalletCards, "03"],
+    ["Admin", "Control people, departments, and company rules.", Settings, "04"],
+  ] as const;
+  return <main className="min-h-screen overflow-hidden bg-[#f5f7f8] text-[#172532]">
+    <nav className="relative z-20 mx-auto flex h-20 max-w-[1420px] items-center justify-between px-5 sm:px-8"><Brand /><div className="hidden items-center gap-8 text-sm font-semibold text-[#5f6d79] md:flex"><a href="#workflow" className="hover:text-[#172532]">Workflow</a><a href="#intelligence" className="hover:text-[#172532]">AI verification</a><a href="#roles" className="hover:text-[#172532]">Roles</a></div><Button onClick={onStart} variant="outline" className="rounded-xl border-[#cfd7dd] bg-white px-5">Sign in <ArrowRight className="size-4" /></Button></nav>
+
+    <section className="relative mx-auto grid min-h-[calc(100vh-80px)] max-w-[1420px] items-center gap-14 px-5 pb-20 pt-10 sm:px-8 lg:grid-cols-[.92fr_1.08fr] lg:py-20">
+      <div className="pointer-events-none absolute -left-40 top-10 size-[500px] rounded-full bg-[#ff6746]/[.07] blur-3xl" />
+      <div className="relative z-10">
+        <motion.div {...enter(0)} className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#ffb3a2] bg-[#fff3ef] px-3 py-1.5 text-xs font-bold text-[#d94f31]"><Sparkles className="size-3.5" /> AI-POWERED EXPENSE OPERATIONS</motion.div>
+        <motion.h1 {...enter(.08)} className="max-w-3xl text-[clamp(3rem,6vw,5.8rem)] font-bold leading-[.96] tracking-[-.065em]">Every expense.<br /><span className="text-[#ff6746]">Clearly handled.</span></motion.h1>
+        <motion.p {...enter(.16)} className="mt-7 max-w-xl text-lg leading-8 text-[#61707d]">Ledgerly moves claims from receipt to reimbursement with business approval, explainable AI verification, policy controls, and a complete audit trail.</motion.p>
+        <motion.div {...enter(.24)} className="mt-9 flex flex-wrap gap-3"><Button onClick={onStart} className="h-12 rounded-xl bg-[#172532] px-6 text-white shadow-[0_14px_35px_rgba(23,37,50,.2)] hover:bg-[#26394b]">Explore the workspace <ArrowRight className="size-4" /></Button><a href="#workflow" className="inline-flex h-12 items-center rounded-xl border border-[#d5dde2] bg-white px-6 text-sm font-semibold">See how it works</a></motion.div>
+        <motion.div {...enter(.32)} className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-sm text-[#677582]">{["Duplicate detection", "Policy checks", "Role-based approvals"].map((item) => <span key={item} className="flex items-center gap-2"><Check className="size-4 text-emerald-600" />{item}</span>)}</motion.div>
+      </div>
+
+      <motion.div initial={{ opacity: 0, scale: reduceMotion ? 1 : .95, x: reduceMotion ? 0 : 30 }} animate={{ opacity: 1, scale: 1, x: 0 }} transition={{ duration: reduceMotion ? 0 : .7, delay: .18 }} className="relative">
+        <motion.div animate={reduceMotion ? undefined : { y: [0, -8, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} className="relative rounded-[28px] border border-white/80 bg-white p-3 shadow-[0_35px_90px_rgba(25,39,52,.16)]"><div className="rounded-[21px] bg-[#eef2f3] p-4 sm:p-6"><div className="mb-5 flex items-center justify-between"><div className="flex items-center gap-2"><span className="size-2.5 rounded-full bg-[#ff6746]" /><span className="size-2.5 rounded-full bg-[#f6bf50]" /><span className="size-2.5 rounded-full bg-[#62bd89]" /></div><span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#687582]">FINANCE OVERVIEW</span></div><div className="grid gap-3 sm:grid-cols-3">{[["Spend", "₹4.28L"], ["In review", "14"], ["Compliance", "94%"]].map(([label, value]) => <div key={label} className="rounded-xl bg-white p-4"><p className="text-xs text-[#84909b]">{label}</p><p className="mt-1 text-xl font-bold">{value}</p></div>)}</div><div className="mt-3 grid gap-3 sm:grid-cols-[1.25fr_.75fr]"><div className="rounded-2xl bg-white p-5"><div className="mb-8 flex justify-between"><div><p className="font-bold">Monthly spend</p><p className="text-xs text-[#89949f]">Across all departments</p></div><TrendingUp className="size-5 text-emerald-600" /></div><div className="flex h-32 items-end gap-3">{[34, 52, 46, 70, 58, 88, 76].map((height, index) => <motion.div key={index} initial={{ height: 0 }} animate={{ height: `${height}%` }} transition={{ duration: reduceMotion ? 0 : .6, delay: .5 + index * .06 }} className="flex-1 rounded-t-md bg-[#26394b] last:bg-[#ff6746]" />)}</div></div><div className="rounded-2xl bg-[#172532] p-5 text-white"><BrainCircuit className="mb-6 text-[#ff8064]" /><p className="text-lg font-bold">AI review complete</p><p className="mt-2 text-xs leading-5 text-[#b8c3cb]">3 claims need attention. Every flag includes evidence and a recommended action.</p><div className="mt-5 rounded-lg bg-white/10 p-3 text-xs"><span className="text-[#b8c3cb]">Risk prevented</span><p className="mt-1 text-lg font-bold">₹18,940</p></div></div></div></div></motion.div>
+        <motion.div animate={reduceMotion ? undefined : { y: [0, 7, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }} className="absolute -bottom-7 -left-5 rounded-2xl border bg-white p-4 shadow-xl sm:-left-10"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><Check className="size-5" /></div><div><p className="text-xs text-[#89949f]">Manager approved</p><p className="text-sm font-bold">Sent to Finance</p></div></div></motion.div>
+      </motion.div>
+    </section>
+
+    <section id="workflow" className="bg-[#172532] px-5 py-24 text-white sm:px-8"><div className="mx-auto max-w-[1240px]"><motion.div initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .4 }} className="max-w-2xl"><p className="text-xs font-bold tracking-[.14em] text-[#ff8064]">ONE CONTROLLED WORKFLOW</p><h2 className="mt-3 text-4xl font-bold tracking-[-.045em] sm:text-5xl">The right decision at every stage.</h2></motion.div><div className="mt-14 grid gap-px overflow-hidden rounded-2xl bg-white/10 md:grid-cols-4">{roles.map(([title, description, Icon, number], index) => <motion.article key={title} initial={{ opacity: 0, y: reduceMotion ? 0 : 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: reduceMotion ? 0 : index * .08 }} whileHover={reduceMotion ? undefined : { y: -6 }} className="relative bg-[#1d2d3a] p-7"><span className="absolute right-5 top-4 text-5xl font-bold text-white/[.04]">{number}</span><div className="grid size-11 place-items-center rounded-xl bg-white/10 text-[#ff8b71]"><Icon className="size-5" /></div><h3 className="mt-8 text-lg font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-[#aebbc5]">{description}</p>{index < 3 && <ArrowRight className="mt-6 size-4 text-white/30" />}</motion.article>)}</div></div></section>
+
+    <section id="intelligence" className="mx-auto grid max-w-[1240px] gap-12 px-5 py-24 sm:px-8 lg:grid-cols-2 lg:items-center"><motion.div initial={{ opacity: 0, x: reduceMotion ? 0 : -24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}><div className="grid size-12 place-items-center rounded-2xl bg-[#fff0eb] text-[#df5638]"><ScanLine /></div><h2 className="mt-6 text-4xl font-bold tracking-[-.045em]">AI that explains what it found.</h2><p className="mt-5 text-lg leading-8 text-[#64727f]">Ledgerly checks receipt integrity, duplicate hashes, image quality, OCR completeness, and policy rules. Suspicious evidence goes to Finance with a confidence score and a clear next action.</p><div className="mt-7 space-y-3">{["Human review stays in control", "No automatic fraud accusations", "Every override enters the audit trail"].map((item) => <div key={item} className="flex items-center gap-3 rounded-xl border bg-white p-4 text-sm font-semibold"><Check className="size-4 text-emerald-600" />{item}</div>)}</div></motion.div><motion.div initial={{ opacity: 0, x: reduceMotion ? 0 : 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="rounded-[28px] bg-[#fff0eb] p-5 sm:p-8"><div className="rounded-2xl border border-[#ffd2c7] bg-white p-5"><div className="flex items-center justify-between"><div><p className="font-bold">The Westin</p><p className="text-xs text-[#89949f]">Receipt EX-1048</p></div><Badge className="bg-red-50 text-red-700">Possible edit</Badge></div><div className="mt-6"><div className="mb-2 flex justify-between text-sm"><span>Risk confidence</span><b>78%</b></div><Progress value={78} className="h-2 [&_[data-slot=progress-indicator]]:bg-[#ff6746]" /></div><div className="mt-5 rounded-xl bg-[#f7f9fa] p-4 text-sm leading-6 text-[#586672]"><b>Reason:</b> JPEG compression differs around the total amount.<br /><b>Recommendation:</b> Compare with the card transaction and request the original file.</div></div></motion.div></section>
+
+    <section id="roles" className="px-5 pb-24 sm:px-8"><motion.div initial={{ opacity: 0, scale: reduceMotion ? 1 : .98 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="mx-auto flex max-w-[1240px] flex-col items-start justify-between gap-8 overflow-hidden rounded-[30px] bg-[#ff6746] p-8 text-white sm:p-12 lg:flex-row lg:items-center"><div><p className="text-sm font-bold text-white/75">READY TO EXPLORE?</p><h2 className="mt-2 max-w-2xl text-4xl font-bold tracking-[-.045em]">See the full expense workflow from every role.</h2></div><Button onClick={onStart} className="h-12 shrink-0 rounded-xl bg-white px-6 font-bold text-[#172532] hover:bg-[#f4f6f7]">Open demo workspace <ArrowRight className="size-4" /></Button></motion.div></section>
+
+    <footer className="border-t bg-white px-5 py-7 sm:px-8"><div className="mx-auto flex max-w-[1240px] flex-col gap-3 text-sm text-[#71808d] sm:flex-row sm:items-center sm:justify-between"><Brand /><p>Receipt intelligence · Approval controls · Reimbursement tracking</p></div></footer>
+  </main>;
+}
+
+function Login({ onLogin, onBack }: { onLogin: (user: User) => void; onBack: () => void }) {
   const [selected, setSelected] = useState<User>(users[0]);
   const [email, setEmail] = useState(users[0].email);
   const [password, setPassword] = useState(users[0].password);
@@ -89,7 +128,7 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
       <div className="flex gap-8 text-sm text-[#aeb9c2]"><span>AI receipt review</span><span>Policy controls</span><span>Complete audit trail</span></div>
     </section>
     <section className="flex items-center justify-center p-5 sm:p-10"><div className="w-full max-w-[470px]">
-      <div className="mb-10 lg:hidden"><Brand /></div>
+      <button onClick={onBack} className="mb-6 flex items-center gap-2 text-sm font-semibold text-[#65737f]"><ArrowRight className="size-4 rotate-180" /> Back to home</button><div className="mb-10 lg:hidden"><Brand /></div>
       <p className="text-sm font-bold text-[#ff6746]">WELCOME BACK</p><h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">Sign in to your workspace</h2><p className="mt-2 text-[#71808d]">Choose a demo role to explore its complete experience.</p>
       <div className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4">{users.map((user) => <button key={user.role} onClick={() => choose(user)} className={`rounded-xl border px-2 py-3 text-sm font-semibold transition ${selected.role === user.role ? "border-[#ff6746] bg-[#fff0eb] text-[#d95235]" : "border-[#dfe5e9] bg-white text-[#687582] hover:border-[#bac4cc]"}`}>{user.label}</button>)}</div>
       <form onSubmit={submit} className="mt-6 rounded-2xl border border-[#e0e6e9] bg-white p-6 shadow-[0_20px_55px_rgba(20,35,48,.08)] sm:p-8">
@@ -261,5 +300,6 @@ function App({ user, onLogout }: { user: User; onLogout: () => void }) {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  return user ? <App user={user} onLogout={() => setUser(null)} /> : <Login onLogin={setUser} />;
+  const [screen, setScreen] = useState<"landing" | "login">("landing");
+  return user ? <App user={user} onLogout={() => { setUser(null); setScreen("login"); }} /> : screen === "landing" ? <Landing onStart={() => setScreen("login")} /> : <Login onLogin={setUser} onBack={() => setScreen("landing")} />;
 }
