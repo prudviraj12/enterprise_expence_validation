@@ -1,0 +1,664 @@
+# Enterprise Expense Verification & Reimbursement Platform
+## Project Specification
+
+**Convention used in this document**
+
+- Content **without a tag** comes directly from the original project brief.
+- Content tagged **`[SUGGESTED]`** is a proposal I added to fill a gap. Accept, change, or remove it.
+- Items in **Section 15 (Open Questions)** are things the brief does not decide and I did not want to assume.
+
+---
+
+## Table of Contents
+
+1. Objective
+2. Users and Roles
+3. Core Features
+4. AI Features
+5. Dashboards
+6. Reports
+7. Search and Filters
+8. Database
+9. Security
+10. APIs
+11. Non-Functional Requirements
+12. UI Requirements
+13. Technology Stack
+14. Deliverables
+15. Open Questions
+
+---
+
+## 1. Objective
+
+Build a modern AI-powered enterprise expense management platform that automates the complete reimbursement process from expense submission to payment.
+
+The system should:
+
+- Reduce manual verification
+- Detect fraud
+- Enforce company policies
+- Provide intelligent analytics
+
+**Scope note (confirmed):** "Payment" means **recording** payment details only (payment date, reference number, amount). The platform does **not** integrate with a payment gateway or bank API and does not generate bank transfer files.
+
+---
+
+## 2. Users and Roles
+
+### 2.1 Employee
+
+Can:
+
+- Login
+- Submit expense
+- Upload receipt
+- View expense history
+- Track reimbursement status
+- Receive notifications
+
+### 2.2 Manager
+
+Can:
+
+- View team expenses
+- Approve claims
+- Reject claims
+- Request clarification
+- View spending analytics
+
+### 2.3 Finance Team
+
+Can:
+
+- Verify claims
+- Review AI recommendations
+- Override decisions
+- Process reimbursements (record payment details)
+- Generate reports
+
+### 2.4 Admin
+
+Can:
+
+- Manage users
+- Configure expense policies
+- Configure departments
+- Configure approval hierarchy
+- Manage company settings
+- View complete analytics
+
+### 2.5 Role Notes
+
+- The system supports **multi-role** users (one user may hold more than one role).
+- `[SUGGESTED]` Permission matrix:
+
+| Capability | Employee | Manager | Finance | Admin |
+|---|:-:|:-:|:-:|:-:|
+| Submit / edit own expense | ✔ | ✔ | ✔ | ✔ |
+| View own history and status | ✔ | ✔ | ✔ | ✔ |
+| View team expenses | | ✔ | | ✔ |
+| Approve / reject / return (manager stage) | | ✔ | | |
+| Finance verification and override | | | ✔ | |
+| Record payment | | | ✔ | |
+| Manage users, departments, policies, hierarchy | | | | ✔ |
+| Company-wide analytics | | | ✔ (finance view) | ✔ |
+
+---
+
+## 3. Core Features
+
+### 3.1 Authentication
+
+- JWT Authentication
+- Refresh Tokens
+- Role Based Access Control
+- Secure Password Hashing
+- Multi-role Support
+
+`[SUGGESTED]` Access token short-lived (e.g. 15 min), refresh token longer-lived and rotated on use; password hashing with bcrypt or Argon2. Exact lifetimes to be confirmed (see Open Questions).
+
+### 3.2 Expense Submission
+
+The employee enters:
+
+| Field | Notes |
+|---|---|
+| Expense Title | |
+| Description | |
+| Amount | |
+| Currency | |
+| Expense Category | |
+| Business Purpose | |
+| Expense Date | |
+| Department | |
+| Project | |
+| Cost Center | |
+
+Uploads:
+
+- Image
+- PDF
+- Multiple attachments allowed
+
+`[SUGGESTED]` A claim contains one or more expense items (matches the `ExpenseClaims` / `ExpenseItems` tables). Allowed file types: JPG, PNG, PDF. Maximum file size and count per claim to be confirmed.
+
+### 3.3 Receipt OCR
+
+Automatically detect:
+
+- Merchant Name
+- Amount
+- Tax
+- Date
+- Invoice Number
+
+Behavior:
+
+- Show extracted information
+- Allow manual correction
+
+`[SUGGESTED]` Store both the original OCR value and the user-corrected value, and log corrections in the audit trail.
+
+### 3.4 AI Receipt Verification
+
+Verify:
+
+- Image quality
+- Edited receipt
+- Fake receipt
+- Duplicate receipt
+- Missing information
+
+Generate a confidence score. Example: `Confidence: 96%`
+
+### 3.5 Duplicate Detection
+
+Compare:
+
+- Invoice Number
+- Merchant
+- Amount
+- Date
+- Image Hash
+
+Classify result as one of:
+
+- Possible Duplicate
+- Duplicate
+- Likely Fraud
+
+`[SUGGESTED]` Classification logic:
+
+| Result | Suggested trigger |
+|---|---|
+| Possible Duplicate | Partial match (e.g. same merchant, amount, and date, but different invoice number) |
+| Duplicate | Same invoice number and merchant, or identical image hash |
+| Likely Fraud | Duplicate across different employees, or duplicate plus edit/tamper signals |
+
+Thresholds to be confirmed.
+
+### 3.6 Policy Engine
+
+Rules supported:
+
+- Maximum hotel expense
+- Maximum meal expense
+- Travel class
+- Weekend spending
+- International travel
+- Department rules
+- Employee level rules
+
+Each violation must explain:
+
+- Reason
+- Suggested correction
+
+`[SUGGESTED]` Example output:
+
+> **Violation:** Meal exceeds department limit of ₹1000.
+> **Suggested correction:** Reduce the claimed amount to ₹1000 or attach manager pre-approval.
+
+### 3.7 Approval Workflow
+
+```
+Employee
+   ↓
+Manager
+   ↓
+Finance
+   ↓
+Reimbursement
+```
+
+Supported actions:
+
+- Approve
+- Reject
+- Return for Correction
+- Escalation
+
+`[SUGGESTED]` Claim status lifecycle:
+
+```
+Draft → Submitted → Manager Review → Finance Review → Approved → Paid
+                        │                 │
+                        ├─ Returned ──────┤   (back to Employee, then resubmit)
+                        └─ Rejected ──────┘   (terminal)
+```
+
+Escalation trigger (for example, no action within N days or amount above a threshold) to be confirmed.
+
+### 3.8 Notifications
+
+Channels:
+
+- Email
+- In-App
+- Push Notification
+
+Notify on:
+
+- Submission
+- Approval
+- Rejection
+- Payment
+- Reminder
+
+### 3.9 Reimbursement
+
+Status values:
+
+- Pending
+- Approved
+- Rejected
+- Paid
+
+Stored details:
+
+- Payment Date
+- Reference Number
+- Amount
+
+**Confirmed behavior:** Finance manually enters or confirms these values after paying outside the system. No gateway or bank integration.
+
+### 3.10 Audit Trail
+
+Record every action with:
+
+- User
+- Timestamp
+- Old Value
+- New Value
+- IP Address
+
+`[SUGGESTED]` Audit logs are append-only and not editable or deletable through the application.
+
+---
+
+## 4. AI Features
+
+### 4.1 OCR
+
+Extract receipt information.
+
+- **Preferred:** Google Vision OCR
+- **Fallback:** Tesseract OCR
+
+`[SUGGESTED]` Fallback is used when Google Vision fails, times out, or returns low confidence.
+
+### 4.2 Fraud Detection
+
+Detect:
+
+- Fake receipts
+- Duplicate receipts
+- Image editing
+- Unusual spending
+- Repeated vendors
+- Abnormal employee behaviour
+
+Results are stored in `FraudReports` and `AIResults`.
+
+### 4.3 Explainable AI
+
+Every decision must contain:
+
+- Reason
+- Confidence
+- Policy Violated
+- Recommendation
+
+Example:
+
+> Rejected because Meal exceeds department limit of ₹1000.
+> Confidence 98%.
+
+`[SUGGESTED]` Explanation payload shape:
+
+```json
+{
+  "decision": "reject",
+  "reason": "Meal exceeds department limit of ₹1000",
+  "confidence": 0.98,
+  "policyViolated": "MEAL_MAX_DEPARTMENT",
+  "recommendation": "Reduce amount to ₹1000 or attach pre-approval"
+}
+```
+
+### 4.4 Spending Insights
+
+- Monthly trends
+- Department comparison
+- Category comparison
+- Employee ranking
+- Forecast
+
+`[SUGGESTED]` Forecasting method (simple moving average, time-series model, etc.) to be decided.
+
+---
+
+## 5. Dashboards
+
+- Employee Dashboard
+- Manager Dashboard
+- Finance Dashboard
+- Admin Dashboard
+
+`[SUGGESTED]` Contents:
+
+| Dashboard | Suggested widgets |
+|---|---|
+| Employee | My claims by status, recent claims, pending actions, reimbursement totals |
+| Manager | Pending approvals, team spend by category and month, team members' claims |
+| Finance | Verification queue, AI flags and fraud alerts, payments due, payments recorded |
+| Admin | Company-wide spend, department comparison, policy violation counts, user activity |
+
+---
+
+## 6. Reports
+
+Periods:
+
+- Monthly
+- Quarterly
+- Yearly
+
+Export formats:
+
+- CSV Export
+- Excel Export
+- PDF Export
+
+---
+
+## 7. Search and Filters
+
+### 7.1 Search
+
+Search by:
+
+- Employee
+- Receipt
+- Invoice
+- Merchant
+- Department
+- Status
+- Date
+- Category
+- Amount
+
+### 7.2 Filters
+
+Filter by:
+
+- Date
+- Department
+- Status
+- Category
+- Merchant
+- Employee
+- Amount
+
+---
+
+## 8. Database
+
+**Database engine:** PostgreSQL
+
+**Tables:**
+
+Users, Departments, ExpenseClaims, ExpenseItems, Receipts, Policies, ApprovalHistory, Notifications, Payments, AuditLogs, AIResults, FraudReports
+
+### `[SUGGESTED]` Table columns
+
+| Table | Suggested columns |
+|---|---|
+| **Users** | id, name, email, password_hash, roles, department_id, manager_id, employee_level, status, created_at |
+| **Departments** | id, name, cost_center, head_user_id, parent_id |
+| **ExpenseClaims** | id, employee_id, title, description, business_purpose, department, project, cost_center, currency, total_amount, status, submitted_at |
+| **ExpenseItems** | id, claim_id, category, amount, tax, expense_date, merchant |
+| **Receipts** | id, claim_id / item_id, file_path, file_type, image_hash, ocr_data, corrected_data, invoice_number, uploaded_at |
+| **Policies** | id, name, rule_type, scope (department / level), parameters (JSON), active, effective_from |
+| **ApprovalHistory** | id, claim_id, stage, actor_id, action, comment, acted_at |
+| **Notifications** | id, user_id, type, channel, message, read, created_at |
+| **Payments** | id, claim_id, payment_date, reference_number, amount, recorded_by |
+| **AuditLogs** | id, user_id, action, entity, entity_id, old_value, new_value, ip_address, timestamp |
+| **AIResults** | id, receipt_id, ocr_confidence, verification_confidence, decision, reason, policy_violated, recommendation |
+| **FraudReports** | id, claim_id / receipt_id, type, classification, score, details, created_at |
+
+---
+
+## 9. Security
+
+- JWT
+- HTTPS
+- Password Hashing
+- Input Validation
+- SQL Injection Protection
+- Rate Limiting
+- File Validation
+- Virus Scan
+- Role Based Access
+
+---
+
+## 10. APIs
+
+REST APIs documented with **Swagger**.
+
+### 10.1 Authentication
+
+| Method | Endpoint |
+|---|---|
+| POST | `/login` |
+| POST | `/register` |
+| POST | `/logout` |
+| POST | `/refresh` |
+
+### 10.2 Expense
+
+| Method | Endpoint |
+|---|---|
+| POST | `/expenses` |
+| GET | `/expenses` |
+| GET | `/expenses/:id` |
+| PUT | `/expenses/:id` |
+| DELETE | `/expenses/:id` |
+
+### 10.3 Receipt
+
+| Method | Endpoint |
+|---|---|
+| POST | `/receipt/upload` |
+| POST | `/receipt/ocr` |
+| POST | `/receipt/verify` |
+
+### 10.4 Approval
+
+| Method | Endpoint |
+|---|---|
+| POST | `/approve` |
+| POST | `/reject` |
+| POST | `/return` |
+
+### 10.5 Dashboard
+
+| Method | Endpoint |
+|---|---|
+| GET | `/dashboard/admin` |
+| GET | `/dashboard/finance` |
+| GET | `/dashboard/manager` |
+| GET | `/dashboard/employee` |
+
+### 10.6 Reports
+
+| Method | Endpoint |
+|---|---|
+| GET | `/reports` |
+| GET | `/analytics` |
+
+### 10.7 Policies
+
+Full CRUD APIs.
+
+`[SUGGESTED]` `POST /policies`, `GET /policies`, `GET /policies/:id`, `PUT /policies/:id`, `DELETE /policies/:id`
+
+### 10.8 Notifications
+
+| Method | Endpoint |
+|---|---|
+| GET | `/notifications` |
+| PUT | `/notifications/read` |
+
+### 10.9 `[SUGGESTED]` Additional endpoints the brief implies but does not list
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/payments` | Record payment details (date, reference number, amount) for an approved claim |
+| GET | `/payments/:claimId` | View payment record |
+| POST | `/finance/override` | Finance overrides an AI decision (reason required) |
+| POST | `/clarify` | Manager requests clarification |
+| POST | `/escalate` | Escalate a claim |
+| CRUD | `/users`, `/departments` | Admin management |
+| GET | `/audit-logs` | View audit trail |
+
+### 10.10 `[SUGGESTED]` Example request and response
+
+`POST /expenses`
+
+```json
+{
+  "title": "Client dinner",
+  "description": "Dinner with client",
+  "amount": 850,
+  "currency": "INR",
+  "category": "Meals",
+  "businessPurpose": "Client meeting",
+  "expenseDate": "2026-09-25",
+  "department": "Sales",
+  "project": "Project X",
+  "costCenter": "CC-101"
+}
+```
+
+Response `201`:
+
+```json
+{ "id": "exp_123", "status": "Submitted" }
+```
+
+---
+
+## 11. Non-Functional Requirements
+
+- Responsive
+- Mobile Friendly
+- Fast Loading
+- Scalable
+- Cloud Ready
+- Production Ready
+- Accessible
+- Dark Mode
+
+`[SUGGESTED]` Measurable targets: WCAG 2.1 AA for accessibility; page load and API latency targets to be confirmed.
+
+---
+
+## 12. UI Requirements
+
+- Modern SaaS Design
+- Glassmorphism
+- Dark Mode
+- Light Mode
+- Charts
+- Animations
+- Responsive
+- Professional Admin Dashboard
+
+---
+
+## 13. Technology Stack
+
+| Layer | Technology (from brief) |
+|---|---|
+| Frontend | React |
+| Backend | Node |
+| AI Service | Python |
+| Database | PostgreSQL |
+| OCR | Google Vision (preferred), Tesseract (fallback) |
+| Packaging | Docker |
+| API Docs | Swagger |
+
+`[SUGGESTED]` Architecture:
+
+```
+React Frontend  ⇄  Node REST API  ⇄  PostgreSQL
+                        │
+                        └──⇄  Python AI Service (OCR, verification, fraud, insights)
+```
+
+---
+
+## 14. Deliverables
+
+- React Frontend
+- Node Backend
+- Python AI Service
+- PostgreSQL Database
+- Docker Support
+- REST APIs
+- Swagger Documentation
+- README
+- Deployment Guide
+- Seed Data
+- Sample Users
+- Testing
+- Production Ready
+
+`[SUGGESTED]` Sample users: one per role (Employee, Manager, Finance, Admin) plus one multi-role user.
+
+---
+
+## 15. Open Questions
+
+These are not decided by the brief and were **not assumed**:
+
+1. **Currency:** Multiple currencies are allowed, but should amounts be converted to a base currency (e.g. INR) for policy checks and reports? If so, which exchange rate source?
+2. **Policy limits:** Actual values for hotel, meal, travel class, weekend, and international rules, per department and employee level.
+3. **Approval hierarchy:** Is it a fixed Manager → Finance chain, or configurable with multiple manager levels? What triggers escalation?
+4. **Finance override:** Must an override require a written reason? Can Finance override fraud flags?
+5. **Push notifications:** Which provider (e.g. Firebase Cloud Messaging, web push)? Is there a native mobile app, or web push only?
+6. **Email delivery:** Which provider (SMTP, SendGrid, SES, etc.)?
+7. **Virus scanning:** Which tool (e.g. ClamAV) and should infected files block the whole claim?
+8. **File limits:** Maximum file size and number of attachments per claim.
+9. **Token lifetimes:** Access and refresh token expiry.
+10. **Registration:** Is `/register` open self-signup, or admin-only user creation?
+11. **Fraud thresholds:** Confidence and score thresholds for "Possible Duplicate", "Duplicate", and "Likely Fraud".
+12. **AI fake/edit detection:** Which approach or model (rules and image forensics, ML model, or an LLM)?
+13. **Forecasting:** Method and horizon.
+14. **Deployment target:** Which cloud (AWS, GCP, Azure) for the Deployment Guide?
+15. **Frameworks:** Preferred Node framework (Express, NestJS), Python framework (FastAPI, Flask), ORM, and frontend UI and chart libraries.
+16. **Data retention:** How long receipts and audit logs are kept.
+17. **Testing:** Expected scope and coverage (unit, integration, end-to-end).

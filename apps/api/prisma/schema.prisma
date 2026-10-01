@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  FINANCE
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  MANAGER_REVIEW
+  FINANCE_REVIEW
+  RETURNED
+  REJECTED
+  APPROVED
+  PAID
+}
+
+enum ApprovalStage {
+  MANAGER
+  FINANCE
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+model User {
+  id               String          @id @default(uuid()) @db.Uuid
+  name             String
+  email            String          @unique
+  passwordHash     String
+  status           UserStatus      @default(ACTIVE)
+  employeeLevel   String?
+  departmentId    String?         @db.Uuid
+  managerId       String?         @db.Uuid
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  department      Department?     @relation(fields: [departmentId], references: [id])
+  manager         User?           @relation("UserManager", fields: [managerId], references: [id])
+  directReports   User[]          @relation("UserManager")
+  roles           UserRole[]
+  claims          ExpenseClaim[]  @relation("ClaimEmployee")
+  approvals       ApprovalHistory[]
+  refreshTokens   RefreshToken[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  recordedPayment Payment[]
+}
+
+model UserRole {
+  userId String @db.Uuid
+  role   Role
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, role])
+}
+
+model Department {
+  id         String       @id @default(uuid()) @db.Uuid
+  name       String       @unique
+  costCenter String?
+  parentId   String?      @db.Uuid
+  parent     Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
+  children   Department[] @relation("DepartmentTree")
+  users      User[]
+  claims     ExpenseClaim[]
+  policies   Policy[]
+  createdAt  DateTime     @default(now())
+}
+
+model ExpenseClaim {
+  id             String           @id @default(uuid()) @db.Uuid
+  employeeId     String           @db.Uuid
+  departmentId   String?          @db.Uuid
+  title          String
+  description    String?
+  businessPurpose String
+  project        String?
+  costCenter     String?
+  currency       String           @db.VarChar(3)
+  totalAmount    Decimal          @db.Decimal(14, 2)
+  status         ClaimStatus      @default(DRAFT)
+  submittedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  employee       User             @relation("ClaimEmployee", fields: [employeeId], references: [id])
+  department     Department?      @relation(fields: [departmentId], references: [id])
+  items          ExpenseItem[]
+  approvals      ApprovalHistory[]
+  payment        Payment?
+  aiResults      AIResult[]
+  fraudReports   FraudReport[]
+
+  @@index([employeeId, status])
+  @@index([departmentId, submittedAt])
+}
+
+model ExpenseItem {
+  id          String        @id @default(uuid()) @db.Uuid
+  claimId     String        @db.Uuid
+  category    String
+  amount      Decimal       @db.Decimal(14, 2)
+  tax         Decimal?      @db.Decimal(14, 2)
+  expenseDate DateTime
+  merchant    String?
+  claim       ExpenseClaim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  receipts    Receipt[]
+}
+
+model Receipt {
+  id             String      @id @default(uuid()) @db.Uuid
+  itemId         String      @db.Uuid
+  storageKey     String      @unique
+  fileName       String
+  mimeType       String
+  fileSize       Int
+  imageHash      String
+  invoiceNumber  String?
+  merchant       String?
+  amount         Decimal?    @db.Decimal(14, 2)
+  receiptDate    DateTime?
+  ocrData        Json?
+  correctedData  Json?
+  uploadedAt     DateTime    @default(now())
+  item           ExpenseItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  aiResults      AIResult[]
+  fraudReports   FraudReport[]
+
+  @@index([imageHash])
+  @@index([invoiceNumber, merchant])
+}
+
+model Policy {
+  id            String      @id @default(uuid()) @db.Uuid
+  name          String
+  ruleType      String
+  scope         String
+  departmentId  String?     @db.Uuid
+  employeeLevel String?
+  parameters    Json
+  active        Boolean     @default(true)
+  effectiveFrom DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+  department    Department? @relation(fields: [departmentId], references: [id])
+
+  @@index([active, ruleType])
+}
+
+model ApprovalHistory {
+  id        String        @id @default(uuid()) @db.Uuid
+  claimId   String        @db.Uuid
+  actorId   String        @db.Uuid
+  stage     ApprovalStage
+  action    String
+  comment   String?
+  actedAt   DateTime      @default(now())
+  claim     ExpenseClaim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  actor     User          @relation(fields: [actorId], references: [id])
+
+  @@index([claimId, actedAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Notification {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @db.Uuid
+  type      String
+  channel   NotificationChannel
+  message   String
+  readAt    DateTime?
+  createdAt DateTime            @default(now())
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model Payment {
+  id             String       @id @default(uuid()) @db.Uuid
+  claimId        String       @unique @db.Uuid
+  paymentDate    DateTime
+  referenceNumber String
+  amount         Decimal      @db.Decimal(14, 2)
+  recordedBy     String       @db.Uuid
+  createdAt      DateTime     @default(now())
+  claim          ExpenseClaim @relation(fields: [claimId], references: [id])
+  recorder       User         @relation(fields: [recordedBy], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @db.Uuid
+  action    String
+  entity    String
+  entityId  String
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId, createdAt])
+}
+
+model AIResult {
+  id                     String       @id @default(uuid()) @db.Uuid
+  claimId                String       @db.Uuid
+  receiptId              String?      @db.Uuid
+  ocrConfidence          Float?
+  verificationConfidence Float?
+  decision               String
+  reason                 String
+  policyViolated         String?
+  recommendation         String?
+  createdAt              DateTime     @default(now())
+  claim                  ExpenseClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  receipt                Receipt?     @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+}
+
+model FraudReport {
+  id         String       @id @default(uuid()) @db.Uuid
+  claimId    String       @db.Uuid
+  receiptId  String?      @db.Uuid
+  type       String
+  classification String
+  score      Float
+  details    Json
+  createdAt  DateTime     @default(now())
+  claim      ExpenseClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  receipt    Receipt?     @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+
+  @@index([classification, createdAt])
+}
