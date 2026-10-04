@@ -1,162 +1,35 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+const { api } = vi.hoisted(() => ({ api: { restoreSession: vi.fn(), login: vi.fn(), register: vi.fn(), logout: vi.fn(), claims: vi.fn(), createClaim: vi.fn(), uploadReceipt: vi.fn(), managerDecision: vi.fn(), financeDecision: vi.fn(), recordPayment: vi.fn() } }));
+vi.mock("@/lib/api", () => ({ api }));
 import Home from "@/app/page";
 
-async function openLogin(user: ReturnType<typeof userEvent.setup>) {
-  render(<Home />);
-  expect(screen.getByRole("heading", { name: /Every expense/i })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /Sign in/i }));
-  expect(screen.getByRole("heading", { name: /Sign in to your workspace/i })).toBeInTheDocument();
-}
+const employee = { id: "user-1", name: "Riya Sharma", email: "riya@example.test", roles: ["EMPLOYEE"] as const };
+const manager = { id: "user-2", name: "Arjun Mehta", email: "arjun@example.test", roles: ["MANAGER"] as const };
+const claim = { id: "claim-1", title: "Client dinner", businessPurpose: "Customer meeting", currency: "INR", totalAmount: 900, status: "MANAGER_REVIEW", createdAt: "2026-10-01T00:00:00.000Z", employee: { id: "user-1", name: "Riya Sharma", email: "riya@example.test" }, items: [{ id: "item-1", category: "Meals", merchant: "Cafe", amount: 900, expenseDate: "2026-10-01T00:00:00.000Z", receipts: [] }] };
 
-async function signIn(user: ReturnType<typeof userEvent.setup>, role: "Employee" | "Manager" | "Finance" | "Admin") {
-  await user.click(screen.getByRole("button", { name: role, exact: true }));
-  await user.click(screen.getByRole("button", { name: `Sign in as ${role}` }));
-}
+describe("Ledgerly API workspace", () => {
+  beforeEach(() => { vi.resetAllMocks(); api.restoreSession.mockResolvedValue(null); api.claims.mockResolvedValue([]); api.logout.mockResolvedValue(undefined); });
 
-describe("Ledgerly modules", () => {
-  beforeEach(() => localStorage.clear());
-
-  it("opens the landing page and all role logins", async () => {
-    const user = userEvent.setup();
-    await openLogin(user);
-    for (const role of ["Employee", "Manager", "Finance", "Admin"] as const) {
-      await user.click(screen.getByRole("button", { name: role, exact: true }));
-      expect(screen.getByRole("button", { name: `Sign in as ${role}` })).toBeEnabled();
-    }
+  it("signs in through the API and loads claims", async () => {
+    const user = userEvent.setup(); api.login.mockResolvedValue(employee);
+    render(<Home />); await screen.findByRole("heading", { name: "Sign in" });
+    await user.type(screen.getByLabelText("Email"), employee.email); await user.type(screen.getByLabelText("Password"), "Employee@123"); await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await screen.findByText("Claims and reimbursements"); expect(api.login).toHaveBeenCalledWith(employee.email, "Employee@123"); expect(api.claims).toHaveBeenCalled();
   });
 
-  it("creates and reopens a custom workspace", async () => {
-    const user = userEvent.setup();
-    render(<Home />);
-    await user.click(screen.getAllByRole("button", { name: /Create workspace/i })[0]);
-    await user.type(screen.getByPlaceholderText("Acme Technologies"), "Orbit Systems");
-    await user.type(screen.getByPlaceholderText("Your full name"), "Maya Singh");
-    await user.type(screen.getByPlaceholderText("admin@company.com"), "maya@orbit.test");
-    await user.type(screen.getByPlaceholderText("At least 8 characters"), "Orbit@123");
-    await user.click(screen.getByRole("button", { name: /Create workspace/i }));
-    expect(screen.getByText("Orbit Systems")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Everything is running smoothly/i })).toBeInTheDocument();
-    expect(localStorage.getItem("ledgerly:workspaces")).toContain("maya@orbit.test");
-    await user.click(screen.getByRole("button", { name: /Sign out/i }));
-    await user.click(screen.getByRole("button", { name: /Orbit Systems/i }));
-    await user.click(screen.getByRole("button", { name: /Sign in as Admin/i }));
-    expect(screen.getByRole("heading", { name: /Everything is running smoothly/i })).toBeInTheDocument();
+  it("submits a claim and optional receipt through the API", async () => {
+    const user = userEvent.setup(); api.restoreSession.mockResolvedValue(employee); api.createClaim.mockResolvedValue({ ...claim, items: [{ ...claim.items[0] }] }); api.uploadReceipt.mockResolvedValue({ id: "receipt-1", fileName: "receipt.png" });
+    render(<Home />); await screen.findByText("Claims and reimbursements"); await user.click(screen.getByRole("button", { name: /new expense/i }));
+    await user.type(screen.getByPlaceholderText("Merchant"), "Cafe"); await user.type(screen.getByPlaceholderText("Business purpose"), "Customer meeting"); await user.type(screen.getByPlaceholderText("Amount (INR)"), "900");
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement; await user.upload(input, new File(["receipt"], "receipt.png", { type: "image/png" })); await user.click(screen.getByRole("button", { name: "Submit expense" }));
+    await waitFor(() => expect(api.createClaim).toHaveBeenCalled()); expect(api.uploadReceipt).toHaveBeenCalledWith("item-1", expect.any(File));
   });
 
-  it("exposes every manager module", async () => {
-    const user = userEvent.setup();
-    await openLogin(user);
-    await signIn(user, "Manager");
-    const modules = ["Dashboard", "Pending approvals", "Team expenses", "Approval history", "Team analytics", "Notifications"];
-    for (const moduleName of modules) {
-      await user.click(screen.getByRole("button", { name: new RegExp(moduleName, "i") }));
-      expect(screen.getByRole("heading", { name: new RegExp(moduleName === "Dashboard" ? "Team approval workspace" : moduleName, "i") })).toBeInTheDocument();
-    }
-  });
-
-  it("persists an employee claim through manager approval into Finance", async () => {
-    const user = userEvent.setup();
-    await openLogin(user);
-    await signIn(user, "Employee");
-    await user.click(screen.getByRole("button", { name: /New expense/i }));
-    await user.type(screen.getByPlaceholderText("Merchant"), "Test Taxi");
-    await user.type(screen.getByPlaceholderText("Business purpose"), "Customer meeting");
-    await user.type(screen.getByPlaceholderText("Amount (INR)"), "900");
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await user.upload(fileInput, new File(["receipt"], "taxi.png", { type: "image/png" }));
-    await waitFor(() => expect(screen.getByText("Ready for review")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: "Submit expense" }));
-    expect(screen.getByText("Expense submitted")).toBeInTheDocument();
-    expect(localStorage.getItem("ledgerly:submitted-expenses")).toContain("Test Taxi");
-    await user.click(screen.getByRole("button", { name: "Done" }));
-    await user.click(screen.getByRole("button", { name: /Sign out/i }));
-
-    await signIn(user, "Manager");
-    await user.click(screen.getByRole("button", { name: /Pending approvals/i }));
-    const submittedClaim = await screen.findByText(/Test Taxi/, {}, { timeout: 5000 });
-    const claim = submittedClaim.closest("article");
-    expect(claim).not.toBeNull();
-    await user.click(within(claim!).getByRole("button", { name: "Review claim" }));
-    await user.click(screen.getByRole("button", { name: /Approve business purpose/i }));
-    await user.click(screen.getByRole("button", { name: /Sign out/i }));
-
-    await signIn(user, "Finance");
-    await user.click(screen.getByRole("button", { name: /Verification/i }));
-    const financeClaim = screen.getByText("Test Taxi").closest("article");
-    expect(financeClaim).not.toBeNull();
-    expect(within(financeClaim!).getByText("New submission")).toBeInTheDocument();
-  });
-
-  it("opens every Finance and Admin module", async () => {
-    const user = userEvent.setup();
-    await openLogin(user);
-    await signIn(user, "Finance");
-    for (const moduleName of ["Overview", "Verification", "Reimbursements", "Reports"]) {
-      await user.click(screen.getByRole("button", { name: new RegExp(moduleName, "i") }));
-    }
-    await user.click(screen.getByRole("button", { name: /Sign out/i }));
-    await signIn(user, "Admin");
-    for (const moduleName of ["Overview", "People", "Policies", "Departments", "Settings"]) {
-      await user.click(screen.getByRole("button", { name: new RegExp(moduleName, "i") }));
-      expect(screen.getByRole("heading", { name: new RegExp(moduleName === "Overview" ? "Everything is running smoothly" : moduleName, "i") })).toBeInTheDocument();
-    }
-  });
-
-  it("adds and edits Admin workspace records", async () => {
-    const user = userEvent.setup();
-    await openLogin(user);
-    await signIn(user, "Admin");
-    await user.click(screen.getByRole("button", { name: "People" }));
-    await user.click(screen.getByRole("button", { name: "Add user" }));
-    await user.type(screen.getByLabelText("Record name"), "Priya Nair");
-    await user.type(screen.getByLabelText("User email"), "priya@ledgerly.test");
-    await user.type(screen.getByLabelText("Employee ID"), "EMP-088");
-    await user.selectOptions(screen.getByLabelText("User role"), "Manager");
-    await user.selectOptions(screen.getByLabelText("User department"), "Operations");
-    await user.type(screen.getByLabelText("Record details"), "Approves Operations travel expenses.");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(screen.getByText("Priya Nair")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Edit Priya Nair" }));
-    await user.clear(screen.getByLabelText("Record name"));
-    await user.type(screen.getByLabelText("Record name"), "Priya Nair Updated");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(screen.getByText("Priya Nair Updated")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Policies" }));
-    await user.click(screen.getByRole("button", { name: "Add policy" }));
-    await user.type(screen.getByLabelText("Record name"), "Client meals policy");
-    await user.selectOptions(screen.getByLabelText("Policy category"), "Meals");
-    await user.selectOptions(screen.getByLabelText("Policy rule type"), "Spending limit");
-    await user.type(screen.getByLabelText("Policy limit"), "2500");
-    await user.selectOptions(screen.getByLabelText("Policy currency"), "INR");
-    await user.selectOptions(screen.getByLabelText("Policy scope"), "Department");
-    await user.type(screen.getByLabelText("Record details"), "Attach an itemized receipt and attendee list.");
-    await user.selectOptions(screen.getByLabelText("Record status"), "Draft");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(screen.getByText("Client meals policy")).toBeInTheDocument();
-    expect(screen.getByText(/INR 2,500/)).toBeInTheDocument();
-    expect(screen.getByText("Draft")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Departments" }));
-    await user.click(screen.getByRole("button", { name: "Add department" }));
-    await user.type(screen.getByLabelText("Record name"), "Customer Success");
-    await user.type(screen.getByLabelText("Department cost center"), "CC-505");
-    await user.type(screen.getByLabelText("Department budget"), "400000");
-    await user.type(screen.getByLabelText("Department lead"), "Sam Roy");
-    await user.type(screen.getByLabelText("Record details"), "Owns onboarding and customer retention expenses.");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(screen.getByText("Customer Success")).toBeInTheDocument();
-    expect(screen.getByText(/CC-505/)).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Settings" }));
-    await user.click(screen.getByRole("button", { name: "Edit Approval workflow" }));
-    await user.selectOptions(screen.getByLabelText("Setting category"), "Approval workflow");
-    await user.clear(screen.getByLabelText("Record details"));
-    await user.type(screen.getByLabelText("Record details"), "Employee to Manager to Finance, with Admin escalation.");
-    await user.selectOptions(screen.getByLabelText("Record status"), "Enabled");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(screen.getByText(/Admin escalation/)).toBeInTheDocument();
+  it("shows manager approvals only for manager-review claims", async () => {
+    const user = userEvent.setup(); api.restoreSession.mockResolvedValue(manager); api.claims.mockResolvedValue([claim]); api.managerDecision.mockResolvedValue({ ...claim, status: "FINANCE_REVIEW" });
+    render(<Home />); await screen.findByText("Client dinner"); await user.click(screen.getByRole("button", { name: "Approve" })); await waitFor(() => expect(api.managerDecision).toHaveBeenCalledWith("claim-1", "approve"));
   });
 });

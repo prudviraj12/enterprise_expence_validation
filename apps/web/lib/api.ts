@@ -1,0 +1,19 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+let accessToken: string | null = null;
+export type ApiUser = { id: string; name: string; email: string; departmentId?: string | null; roles: Array<"EMPLOYEE" | "MANAGER" | "FINANCE" | "ADMIN"> };
+export type ApiReceipt = { id: string; fileName: string; aiResults?: Array<{ decision: string; reason: string; recommendation?: string | null; verificationConfidence?: number | null }>; fraudReports?: Array<{ classification: string; type: string; score: number }> };
+export type ApiClaim = { id: string; title: string; businessPurpose: string; currency: string; totalAmount: number | string; status: string; createdAt: string; employee: { id: string; name: string; email: string }; items: Array<{ id: string; category: string; merchant?: string | null; amount: number | string; expenseDate: string; receipts?: ApiReceipt[] }>; aiResults?: Array<{ decision: string; reason: string; recommendation?: string | null }>; payment?: { paymentDate: string; referenceNumber: string; amount: number | string } | null; };
+async function refresh(): Promise<boolean> { const response = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }); if (!response.ok) return false; accessToken = (await response.json() as { accessToken: string }).accessToken; return true; }
+async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> { const headers = new Headers(init.headers); if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`); if (!(init.body instanceof FormData) && init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json"); const response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" }); if (response.status === 401 && retry && await refresh()) return request<T>(path, init, false); if (!response.ok) { const body = await response.json().catch(() => ({ error: "Request failed." })) as { error?: string }; throw new Error(body.error ?? "Request failed."); } if (response.status === 204) return undefined as T; return response.json() as Promise<T>; }
+export const api = {
+  async restoreSession(): Promise<ApiUser | null> { return await refresh() ? request<ApiUser>("/auth/me") : null; },
+  async login(email: string, password: string) { const result = await request<{ accessToken: string; user: ApiUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }); accessToken = result.accessToken; return result.user; },
+  async register(name: string, email: string, password: string) { const result = await request<{ accessToken: string; user: ApiUser }>("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) }); accessToken = result.accessToken; return result.user; },
+  async logout() { await request<void>("/auth/logout", { method: "POST" }); accessToken = null; },
+  claims: () => request<ApiClaim[]>("/expenses"),
+  createClaim: (input: object) => request<ApiClaim>("/expenses", { method: "POST", body: JSON.stringify(input) }),
+  uploadReceipt: (itemId: string, file: File) => { const form = new FormData(); form.append("file", file); return request<ApiReceipt>(`/receipts/items/${itemId}`, { method: "POST", body: form }); },
+  managerDecision: (id: string, action: "approve" | "reject" | "return" | "clarify", comment?: string) => request<ApiClaim>(`/claims/${id}/manager/${action}`, { method: "POST", body: JSON.stringify({ comment }) }),
+  financeDecision: (id: string, action: "approve" | "reject" | "return" | "override", comment?: string) => request<ApiClaim>(`/claims/${id}/finance/${action}`, { method: "POST", body: JSON.stringify({ comment }) }),
+  recordPayment: (id: string, paymentDate: string, referenceNumber: string, amount: number) => request(`/claims/${id}/payment`, { method: "POST", body: JSON.stringify({ paymentDate, referenceNumber, amount }) })
+};
