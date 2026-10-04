@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: expense
+      POSTGRES_USER: expense
+      POSTGRES_PASSWORD: expense
+    ports: ["5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expense -d expense"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai:
+    build: ./apps/ai-service
+    ports: ["8000:8000"]
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://expense:expense@postgres:5432/expense
+      JWT_ACCESS_SECRET: local-development-access-secret-change-me-123
+      JWT_REFRESH_SECRET: local-development-refresh-secret-change-me-123
+      AI_SERVICE_URL: http://ai:8000
+      WEB_ORIGIN: http://localhost:5173
+    ports: ["4000:4000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      ai: { condition: service_started }
+
+volumes:
+  postgres-data:

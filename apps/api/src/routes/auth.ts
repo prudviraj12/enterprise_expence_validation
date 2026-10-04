@@ -222,3 +222,32 @@ authRouter.get("/users", authenticate, requireRoles(Role.ADMIN), async (_req, re
     next(error);
   }
 });
+
+authRouter.patch("/users/:id", authenticate, requireRoles(Role.ADMIN), async (req, res, next) => {
+  try {
+    const input = z.object({
+      name: z.string().trim().min(2).max(120).optional(),
+      departmentId: z.string().uuid().nullable().optional(),
+      managerId: z.string().uuid().nullable().optional(),
+      employeeLevel: z.string().trim().max(80).nullable().optional(),
+      status: z.nativeEnum(UserStatus).optional(),
+      roles: z.array(z.nativeEnum(Role)).min(1).optional()
+    }).parse(req.body);
+    const existing = await prisma.user.findUnique({ where: { id: req.params.id }, include: { roles: true } });
+    if (!existing) { res.status(404).json({ error: "User not found." }); return; }
+    if (existing.id === req.auth!.userId && input.status === UserStatus.DISABLED) { res.status(409).json({ error: "You cannot disable your own account." }); return; }
+    const user = await prisma.user.update({
+      where: { id: existing.id },
+      data: {
+        ...input,
+        roles: input.roles ? { deleteMany: {}, create: [...new Set(input.roles)].map((role) => ({ role })) } : undefined
+      },
+      select: publicUserSelect
+    });
+    if (input.status === UserStatus.DISABLED) await prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    await writeAudit({ userId: req.auth!.userId, action: "UPDATE_USER", entity: "User", entityId: user.id, oldValue: { status: existing.status, roles: existing.roles.map((entry) => entry.role) }, newValue: { status: user.status, roles: user.roles.map((entry) => entry.role) }, ipAddress: req.ip });
+    res.json({ ...user, roles: user.roles.map((entry) => entry.role) });
+  } catch (error) {
+    next(error);
+  }
+});

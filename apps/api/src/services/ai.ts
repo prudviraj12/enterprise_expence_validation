@@ -4,6 +4,10 @@ export type ReceiptAnalysis = {
   extracted: Record<string, unknown>;
   ocrConfidence: number;
   verificationConfidence: number;
+  decision: string;
+  reason: string;
+  recommendation: string;
+  imageHash: string;
   flags: Array<{ type: string; classification: string; score: number; details: Record<string, unknown> }>;
 };
 
