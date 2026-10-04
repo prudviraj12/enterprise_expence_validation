@@ -2,6 +2,14 @@
 
 Ledgerly is an AI-assisted expense reimbursement platform with a React frontend, Node/Express API, PostgreSQL data store, and Python receipt-analysis service.
 
+## Live website
+
+The currently deployed Ledgerly interface is available at:
+
+https://ledgerly-expense.bharadwajreddy1406.chatgpt.site
+
+> The hosted interface is public. Running the complete expense workflow locally also requires the API, PostgreSQL, and AI service described below.
+
 ## Local setup
 
 1. Copy `apps/api/.env.example` to `apps/api/.env` and replace the JWT secrets.
