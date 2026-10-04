@@ -10,6 +10,12 @@ https://ledgerly-expense.bharadwajreddy1406.chatgpt.site
 
 > The hosted interface is public. Running the complete expense workflow locally also requires the API, PostgreSQL, and AI service described below.
 
+## Project status
+
+- API: authentication, claims, receipt analysis, approval workflow, policy management, notifications, and payment recording.
+- Web: API-backed sign-in, claim submission, receipt upload, manager review, finance review, and reimbursement actions.
+- Deployment: the public interface is linked above; the complete workflow requires the accompanying API and database services.
+
 ## Local setup
 
 1. Copy `apps/api/.env.example` to `apps/api/.env` and replace the JWT secrets.
